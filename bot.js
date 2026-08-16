@@ -121,7 +121,7 @@ function createBot(info) {
       port: MC_PORT,
       username: info.name,
       auth: "offline",
-      version: "26.2"
+      version: "1.21.11"
     });
   } catch (error) {
     console.error(`[${info.name}] Failed to create bot:`, error.message);
