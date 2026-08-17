@@ -1,1 +1,0 @@
-# gamerpoint-bot
