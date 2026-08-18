@@ -1,67 +1,105 @@
 const mineflayer = require("mineflayer");
 
-const HOST = process.env.VELOCITY_HOST || "127.0.0.1";
+const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.VELOCITY_PORT || 25565);
 const USERNAME = process.env.BOT_NAME || "GPMCBot";
-const PASSWORD = process.env.BOT_PASSWORD || "";
+const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
 const TARGET = process.env.BOT_TARGET || "lobby";
+const MC_VERSION = process.env.MC_VERSION || false;
 
-let bot;
+let bot = null;
 let authenticated = false;
-let destinationSent = false;
+let routeSent = false;
+let routeTimer = null;
+let reconnectTimer = null;
+let stopping = false;
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function log(msg) {
+  console.log(`[${USERNAME}] ${msg}`);
+}
 
 function connect() {
-  bot = mineflayer.createBot({
-    host: HOST,
-    port: PORT,
-    username: USERNAME,
-    version: process.env.MC_VERSION || false,
-    auth: "offline"
-  });
+  if (stopping) return;
 
-  console.log(`Connecting as ${USERNAME} to ${HOST}:${PORT}`);
+  authenticated = false;
+  routeSent = false;
+  if (routeTimer) clearTimeout(routeTimer);
+  routeTimer = null;
+
+  log(`Connecting to ${HOST}:${PORT} -> ${TARGET}`);
+
+  try {
+    bot = mineflayer.createBot({
+      host: HOST,
+      port: PORT,
+      username: USERNAME,
+      version: MC_VERSION,
+      auth: "offline",
+      hideErrors: false
+    });
+  } catch (err) {
+    log(`Create bot error: ${err.message}`);
+    return scheduleReconnect();
+  }
 
   bot.once("spawn", () => {
-    console.log("Spawned");
-    // LimboAuth normally asks for authentication shortly after connection.
-    // Give the plugin a moment, then authenticate. This avoids waiting for a
-    // particular translated chat string.
+    log("Spawned; sending /login shortly");
     setTimeout(() => {
-      if (!PASSWORD) return console.error("BOT_PASSWORD missing");
-      console.log("Sending /login");
+      if (!bot || stopping) return;
+      log("Sending /login");
       bot.chat(`/login ${PASSWORD}`);
-    }, 1200);
+    }, 1500);
   });
 
   bot.on("message", jsonMsg => {
     const text = jsonMsg.toString().toLowerCase();
     if (!authenticated &&
-        (text.includes("success") || text.includes("logged in") ||
-         text.includes("authenticated") || text.includes("successfully"))) {
+      (text.includes("success") ||
+       text.includes("logged in") ||
+       text.includes("authenticated") ||
+       text.includes("login successful") ||
+       text.includes("successfully logged"))) {
       authenticated = true;
-      console.log("LimboAuth authentication detected");
-      setTimeout(() => {
-        if (!bot || !bot.chat || destinationSent) return;
-        destinationSent = true;
-        console.log(`Sending /server ${TARGET} after 30 seconds`);
+      log("Authentication detected; routing in 30 seconds");
+      routeTimer = setTimeout(() => {
+        if (!bot || stopping || routeSent) return;
+        routeSent = true;
+        log(`Sending /server ${TARGET}`);
         bot.chat(`/server ${TARGET}`);
       }, 30000);
     }
   });
 
-  bot.on("kicked", reason => console.log("Kicked:", reason));
-  bot.on("error", err => console.error("Error:", err.message));
+  bot.on("kicked", reason => log(`Kicked: ${reason}`));
+  bot.on("error", err => log(`Error: ${err.message}`));
   bot.on("end", reason => {
-    console.log("Disconnected:", reason || "unknown");
-    process.exit(2);
+    log(`Disconnected: ${reason || "unknown"}`);
+    bot = null;
+    scheduleReconnect();
   });
-
-  // Small harmless movement keeps the connection active without issuing
-  // server management commands.
-  setInterval(() => {
-    if (!bot || !bot.entity) return;
-    bot.setControlState("jump", false);
-  }, 15000);
 }
+
+function scheduleReconnect() {
+  if (stopping || reconnectTimer) return;
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, 5000);
+  log("Reconnecting in 5 seconds...");
+}
+
+process.on("SIGTERM", () => {
+  stopping = true;
+  if (routeTimer) clearTimeout(routeTimer);
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  if (bot) {
+    try { bot.quit("Panel stop"); } catch {}
+  }
+  setTimeout(() => process.exit(0), 500);
+});
+
+process.on("SIGINT", () => process.emit("SIGTERM"));
 
 connect();
