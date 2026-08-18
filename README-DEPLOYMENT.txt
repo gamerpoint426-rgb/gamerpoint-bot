@@ -1,37 +1,28 @@
-GamerPointMC Bot Panel v5
-
-This version is designed for one Railway service. Railway serves the panel directly; no external API, database, or separate panel service is required.
-
-Four bots:
-1. Lobby    -> /server lobby     -> password Notgpbot1
-2. Survival -> /server survival  -> password Notgpbot2
-3. MiniGame -> /server minigame  -> password Notgpbot3
-4. OneBlock -> /server oneblock   -> password Notgpbot4
-
-Default Minecraft endpoint:
-play.gamerpointmc.qzz.io:25565
+GamerPointMC Bot Panel v7
 
 Railway:
-- Build: npm install
-- Start: npm start
-- The app automatically uses Railway's PORT.
-- Open the generated Railway public domain. The panel asks for PANEL_TOKEN.
-- Default PANEL_TOKEN is NotgpPanel1; change it in Railway Variables if desired.
+Build: npm install
+Start: npm start
 
-Optional Railway variables:
-VELOCITY_HOST=play.gamerpointmc.qzz.io
-VELOCITY_PORT=25565
-BOT1_PASSWORD=Notgpbot1
-BOT2_PASSWORD=Notgpbot2
-BOT3_PASSWORD=Notgpbot3
-BOT4_PASSWORD=Notgpbot4
-PANEL_TOKEN=NotgpPanel1
-MC_VERSION= (leave unset for auto-detect)
+Panel password default: NotgpPanel1
+Velocity default: play.gamerpointmc.qzz.io:25565
+Minecraft bot version default: 1.21.11
 
-Important:
-- The panel's buttons directly control child bot processes inside the same Railway service.
-- There is no third-party/external API.
-- The bots automatically reconnect 5 seconds after a disconnect.
-- Stop All / Stop buttons terminate only the bot process; they do not send Minecraft /stop.
-- All four bots use the same Velocity endpoint but different Minecraft usernames.
-- If your LimboAuth messages do not contain a normal success/login-success/authenticated phrase, adjust the detector in bot.js.
+Four bots:
+1 GPMCBot-Lobby / lobby / Notgpbot1
+2 GPMCBot-Survival / survival / Notgpbot2
+3 GPMCBot-MiniGame / minigame / Notgpbot3
+4 GPMCBot-OneBlock / oneblock / Notgpbot4
+
+Panel features:
+- Per-bot settings dropdown
+- Change target server
+- Change bot password
+- Periodic disconnect interval (0 disables)
+- Reconnect delay
+- Login delay
+- Route delay
+- Per-bot console tabs
+- Detected current server when the bot reports it
+- Save settings and restart that bot
+- Direct Railway panel; no external API
