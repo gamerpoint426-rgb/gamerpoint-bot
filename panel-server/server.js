@@ -13,7 +13,7 @@ const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const VELOCITY_PORT = Number(process.env.VELOCITY_PORT || 25565);
 const DEFAULT_RECONNECT = Number(process.env.RECONNECT_DELAY_MS || 5000);
 const DEFAULT_DISCONNECT = Number(process.env.DISCONNECT_INTERVAL_MS || 0);
-const DEFAULT_ROUTE = Number(process.env.ROUTE_DELAY_MS || 30000);
+const DEFAULT_ROUTE = Number(process.env.ROUTE_DELAY_MS || 2000);
 const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
 
@@ -67,7 +67,7 @@ function startBot(id) {
   b.proc = child; b.actualServer = "connecting"; b.lastStart = Date.now();
   addLog(id, `STARTED ${c.name} -> ${c.target} @ ${HOST}:${VELOCITY_PORT}`);
   child.stdout.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => { const detected = detectServer(x); if (detected) b.actualServer = detected; addLog(id, x); broadcastState(); }));
-  child.stderr.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => addLog(id, `[ERR] ${x}`)));
+  child.stderr.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => { if (/Chunk size is 63 but only 29 was read/i.test(x)) return; addLog(id, `[ERR] ${x}`); }));
   child.on("error", err => addLog(id, `[PROCESS ERROR] ${err.message}`));
   child.on("exit", (code, signal) => { b.proc = null; b.actualServer = "disconnected"; addLog(id, `STOPPED (code=${code}, signal=${signal || "none"})`); broadcastState(); });
   broadcastState(); return { ok: true };
