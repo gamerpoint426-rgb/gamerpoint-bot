@@ -84,8 +84,59 @@ function looksAuthenticated(text) {
   return [
     "login successful", "successfully logged", "successfully logged in", "logged in successfully",
     "you are now logged in", "you are logged in", "authentication successful", "authenticated",
-    "welcome back", "login complete", "logged-in", "logged in"
+    "welcome back", "login complete", "logged-in", "logged in",
+    "registration successful", "successfully registered", "registered successfully",
+    "you have been registered", "registration complete", "account registered"
   ].some(x => t.includes(x));
+}
+
+function isRegisterPrompt(text) {
+  const t = text.toLowerCase();
+  return (
+    t.includes("please, register") ||
+    t.includes("please register") ||
+    t.includes("use /register") ||
+    t.includes("using /register") ||
+    t.includes("register using") ||
+    t.includes("registration") && t.includes("/register")
+  );
+}
+
+function isLoginPrompt(text) {
+  const t = text.toLowerCase();
+  return (
+    t.includes("please, login") ||
+    t.includes("please login") ||
+    t.includes("use /login") ||
+    t.includes("using /login") ||
+    t.includes("login using") ||
+    t.includes("enter your password") ||
+    t.includes("authentication") && t.includes("/login")
+  );
+}
+
+function cancelLoginTimer() {
+  if (loginTimer) {
+    clearTimeout(loginTimer);
+    loginTimer = null;
+  }
+}
+
+function sendRegister() {
+  if (!bot || stopping || authenticated) return;
+  cancelLoginTimer();
+  log("LimboAuth requested registration; sending /register <password> <password>");
+  try {
+    bot.chat(`/register ${PASSWORD} ${PASSWORD}`);
+  } catch (err) {
+    log(`Register command error: ${err.message}`);
+    return scheduleAuthRetry();
+  }
+  loginAttempts = 0;
+  loginTimer = setTimeout(() => {
+    loginTimer = null;
+    if (!authenticated) scheduleAuthRetry();
+  }, LOGIN_RETRY_INTERVAL);
 }
 
 function sendLogin() {
@@ -95,11 +146,22 @@ function sendLogin() {
     return;
   }
   loginAttempts++;
+  cancelLoginTimer();
   log(`Sending /login attempt ${loginAttempts}/${MAX_LOGIN_RETRIES}`);
-  try { bot.chat(`/login ${PASSWORD}`); } catch (err) { log(`Login command error: ${err.message}`); }
+  try { bot.chat(`/login ${PASSWORD}`); }
+  catch (err) { log(`Login command error: ${err.message}`); }
   if (!authenticated && loginAttempts < MAX_LOGIN_RETRIES) {
     loginTimer = setTimeout(() => { loginTimer = null; sendLogin(); }, LOGIN_RETRY_INTERVAL);
   }
+}
+
+function scheduleAuthRetry() {
+  if (!bot || stopping || authenticated) return;
+  cancelLoginTimer();
+  loginTimer = setTimeout(() => {
+    loginTimer = null;
+    if (!authenticated) sendLogin();
+  }, LOGIN_RETRY_INTERVAL);
 }
 
 function markAuthenticated(source) {
@@ -140,8 +202,13 @@ function connect() {
   }
 
   bot.once("spawn", () => {
-    log("Spawned; waiting before login");
-    loginTimer = setTimeout(() => { loginTimer = null; sendLogin(); }, LOGIN_DELAY);
+    log("Spawned; waiting for LimboAuth prompt");
+    // Some LimboAuth configurations do not send the prompt immediately.
+    // If no prompt arrives, fall back to /login after LOGIN_DELAY.
+    loginTimer = setTimeout(() => {
+      loginTimer = null;
+      if (!authenticated) sendLogin();
+    }, LOGIN_DELAY);
   });
 
   bot.on("message", jsonMsg => {
@@ -149,7 +216,18 @@ function connect() {
     const detected = detectServer(raw);
     if (DEBUG_CHAT) log(`[CHAT] ${raw}`);
     if (detected) log(`Server detected: ${detected}`);
-    if (looksAuthenticated(raw)) markAuthenticated("chat message");
+
+    if (isRegisterPrompt(raw)) {
+      sendRegister();
+      return;
+    }
+
+    if (isLoginPrompt(raw)) {
+      sendLogin();
+      return;
+    }
+
+    if (looksAuthenticated(raw)) markAuthenticated("LimboAuth success message");
   });
 
   bot.on("kicked", reason => {
