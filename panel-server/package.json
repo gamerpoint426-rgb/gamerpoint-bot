@@ -1,6 +1,6 @@
 {
   "name": "gamerpointmc-bot-panel",
-  "version": "4.0.0",
+  "version": "7.0.0",
   "private": true,
   "main": "server.js",
   "scripts": {
