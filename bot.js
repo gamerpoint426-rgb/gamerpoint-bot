@@ -9,7 +9,9 @@ const MC_VERSION = process.env.MC_VERSION || "1.21.11";
 const LOGIN_DELAY = Math.max(0, Number(process.env.LOGIN_DELAY_MS || 1500));
 const LOGIN_RETRY_INTERVAL = Math.max(2000, Number(process.env.LOGIN_RETRY_INTERVAL_MS || 5000));
 const MAX_LOGIN_RETRIES = Math.max(1, Number(process.env.MAX_LOGIN_RETRIES || 10));
-const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 30000));
+const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 2000));
+const ROUTE_RETRY_INTERVAL = Math.max(1000, Number(process.env.ROUTE_RETRY_INTERVAL_MS || 3000));
+const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 8));
 const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 0));
 const RECONNECT_DELAY = Math.max(1000, Number(process.env.RECONNECT_DELAY_MS || 5000));
 const DEBUG_CHAT = String(process.env.DEBUG_CHAT || "true").toLowerCase() !== "false";
@@ -22,6 +24,7 @@ let reconnectTimer = null;
 let periodicDisconnectTimer = null;
 let loginTimer = null;
 let loginAttempts = 0;
+let routeAttempts = 0;
 let stopping = false;
 
 function log(msg) { console.log(`[${USERNAME}] ${msg}`); }
@@ -164,19 +167,32 @@ function scheduleAuthRetry() {
   }, LOGIN_RETRY_INTERVAL);
 }
 
+function sendRoute() {
+  if (!bot || stopping || !authenticated || routeSent) return;
+  if (!TARGET || TARGET === 'lobby') {
+    routeSent = true;
+    log(`Target is ${TARGET || 'lobby'}; no server switch required.`);
+    schedulePeriodicDisconnect();
+    return;
+  }
+  routeAttempts++;
+  log(`Sending /server ${TARGET} attempt ${routeAttempts}/${MAX_ROUTE_RETRIES}`);
+  try { bot.chat(`/server ${TARGET}`); } catch (err) { log(`Route command error: ${err.message}`); }
+  if (routeAttempts < MAX_ROUTE_RETRIES && !routeSent) {
+    routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_RETRY_INTERVAL);
+  } else {
+    schedulePeriodicDisconnect();
+  }
+}
+
 function markAuthenticated(source) {
   if (authenticated) return;
   authenticated = true;
   if (loginTimer) { clearTimeout(loginTimer); loginTimer = null; }
+  routeAttempts = 0;
   log(`Authentication detected (${source}); routing in ${Math.round(ROUTE_DELAY / 1000)} seconds`);
   if (routeTimer) clearTimeout(routeTimer);
-  routeTimer = setTimeout(() => {
-    if (!bot || stopping || routeSent) return;
-    routeSent = true;
-    log(`Sending /server ${TARGET}`);
-    try { bot.chat(`/server ${TARGET}`); } catch (err) { log(`Route command error: ${err.message}`); }
-    schedulePeriodicDisconnect();
-  }, ROUTE_DELAY);
+  routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_DELAY);
 }
 
 function connect() {
@@ -184,6 +200,7 @@ function connect() {
   clearTimers();
   authenticated = false;
   routeSent = false;
+  routeAttempts = 0;
   loginAttempts = 0;
 
   log(`Connecting to ${HOST}:${PORT} -> ${TARGET} (MC ${MC_VERSION})`);
@@ -215,7 +232,15 @@ function connect() {
     const raw = messageText(jsonMsg);
     const detected = detectServer(raw);
     if (DEBUG_CHAT) log(`[CHAT] ${raw}`);
-    if (detected) log(`Server detected: ${detected}`);
+    if (detected) {
+      log(`Server detected: ${detected}`);
+      if (TARGET === detected) {
+        routeSent = true;
+        if (routeTimer) { clearTimeout(routeTimer); routeTimer = null; }
+        log(`Target server ${TARGET} confirmed.`);
+        schedulePeriodicDisconnect();
+      }
+    }
 
     if (isRegisterPrompt(raw)) {
       sendRegister();
