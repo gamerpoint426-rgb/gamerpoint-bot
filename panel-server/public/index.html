@@ -1,1 +1,46 @@
-
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GamerPointMC Bot Panel</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Arial;background:#070b12;color:#edf2ff}
+.wrap{max-width:1100px;margin:auto;padding:22px 16px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
+h1{margin:0;font-size:27px}.muted{color:#8793a9;font-size:13px}.card{background:#0f1725;border:1px solid #26334a;border-radius:18px;padding:17px;margin-bottom:16px;box-shadow:0 15px 45px #0005}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px}.bot{background:#0b1220;border:1px solid #26334a;border-radius:15px;padding:16px}
+.row{display:flex;justify-content:space-between;align-items:center}.name{font-weight:750}.status{margin-top:8px;color:#8996ab;font-size:13px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#66738a;margin-right:7px}.on{background:#35dc84}
+.switch{width:62px;height:34px;position:relative}.switch input{display:none}.slider{position:absolute;inset:0;border-radius:30px;background:#344157;cursor:pointer;transition:.2s}.slider:before{content:"";position:absolute;width:26px;height:26px;left:4px;top:4px;background:white;border-radius:50%;transition:.2s}.switch input:checked+.slider{background:#18b966}.switch input:checked+.slider:before{transform:translateX(28px)}
+.consoleHead{display:flex;justify-content:space-between;align-items:center}.buttons{display:flex;gap:8px}button{border:1px solid #34445d;background:#17243a;color:#eef4ff;border-radius:10px;padding:9px 12px;cursor:pointer}button:hover{background:#21314b}
+pre{margin:12px 0 0;height:370px;overflow:auto;background:#05080d;border:1px solid #202b3c;border-radius:12px;padding:13px;font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.stat{background:#0f1725;border:1px solid #26334a;border-radius:15px;padding:14px}.num{font-size:20px;font-weight:750;margin-top:4px}
+@media(max-width:650px){.stats{grid-template-columns:1fr}.top{display:block}.top .muted{margin-top:5px}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><div><h1>GamerPointMC Bot Panel</h1><div class="muted">Live control • LimboAuth • 30s post-login routing</div></div></div>
+<div class="stats"><div class="stat"><div class="muted">Bots online</div><div class="num" id="count">0 / 2</div></div><div class="stat"><div class="muted">Lobby target</div><div class="num">Lobby</div></div><div class="stat"><div class="muted">Survival target</div><div class="num">Survival</div></div></div>
+<div class="card"><h2>Bot Controls</h2><div class="grid" id="bots"></div></div>
+<div class="card"><div class="consoleHead"><h2>Live Console</h2><div class="buttons"><button onclick="copyLog()">Copy Log</button><button onclick="clearLog()">Clear</button></div></div><pre id="console"></pre></div>
+</div>
+<script>
+const token=localStorage.getItem("gpmc_token")||prompt("Enter PANEL_TOKEN");
+if(token)localStorage.setItem("gpmc_token",token);
+const C=document.getElementById("console");
+const names={1:"GPMCBot-Lobby",2:"GPMCBot-Survival"};
+const targets={1:"lobby",2:"survival"};
+let selected="all", state={};
+function add(s){C.textContent+=s+"\\n";C.scrollTop=C.scrollHeight}
+function render(){
+  const el=document.getElementById("bots"); el.innerHTML="";
+  let n=0;
+  for(const id of ["1","2"]){const b=state[id]||{running:false};if(b.running)n++;
+    el.innerHTML+=`<div class="bot"><div class="row"><div><div class="name"><span class="dot ${b.running?"on":""}"></span>${names[id]}</div><div class="status">Target: ${targets[id]} • ${b.running?"RUNNING":"STOPPED"}</div></div><label class="switch"><input type="checkbox" ${b.running?"checked":""} onchange="toggle('${id}',this.checked)"><span class="slider"></span></label></div></div>`;
+  }
+  document.getElementById("count").textContent=`${n} / 2`;
+}
+async function api(url,method="GET"){const r=await fetch(url,{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});return r.json()}
+async function toggle(id,on){add(`[panel] ${on?"START":"STOP"} requested for ${names[id]}`);const x=await api(`/api/bots/${id}/${on?"start":"stop"}`,"POST");if(!x.ok)add(`[error] ${x.error}`)}
+async function load(){const x=await api("/api/state");if(x.ok){state=x.bots;render()}else add("[error] Unauthorized: refresh and enter the correct PANEL_TOKEN")}
+async function copyLog(){await navigator.clipboard.writeText(C.textContent);add("[panel] Log copied")}
+function clearLog(){C.textContent=""}
+const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
+ws.onmessage=e=>{const x=JSON.parse(e.data);if(x.type==="log")add(x.line);if(x.type==="state"){state=x.bots;render()}};
+load();
+</script></body></html>
