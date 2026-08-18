@@ -4,38 +4,63 @@ const WebSocket = require("ws");
 const { spawn } = require("child_process");
 const path = require("path");
 
-const PORT = Number(process.env.PANEL_PORT || 3000);
-const PANEL_TOKEN = process.env.PANEL_TOKEN || "CHANGE_ME";
+const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
+const PANEL_TOKEN = process.env.PANEL_TOKEN || "NotgpPanel1";
 const ROOT = path.resolve(__dirname, "..");
 const BOT_ENTRY = process.env.BOT_ENTRY || path.join(ROOT, "bot.js");
 
+const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
+const VELOCITY_PORT = Number(process.env.VELOCITY_PORT || 25565);
+
 const configs = {
-  "1": { name: "GPMCBot-Lobby", target: "lobby", password: process.env.BOT1_PASSWORD || "" },
-  "2": { name: "GPMCBot-Survival", target: "survival", password: process.env.BOT2_PASSWORD || "" }
+  "1": { name: "GPMCBot-Lobby", target: "lobby", password: process.env.BOT1_PASSWORD || "Notgpbot1" },
+  "2": { name: "GPMCBot-Survival", target: "survival", password: process.env.BOT2_PASSWORD || "Notgpbot2" },
+  "3": { name: "GPMCBot-MiniGame", target: "minigame", password: process.env.BOT3_PASSWORD || "Notgpbot3" },
+  "4": { name: "GPMCBot-OneBlock", target: "oneblock", password: process.env.BOT4_PASSWORD || "Notgpbot4" }
 };
 
 const bots = {};
-for (const id of Object.keys(configs)) {
-  bots[id] = { proc: null, started: false, log: [] };
-}
+for (const id of Object.keys(configs)) bots[id] = { proc: null, log: [] };
 
 function addLog(id, line) {
   const msg = `[${new Date().toISOString()}] ${line}`;
   bots[id].log.push(msg);
   if (bots[id].log.length > 1000) bots[id].log.shift();
   wss.clients.forEach(ws => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type:"log", id, line:msg }));
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "log", id, line: msg }));
+    }
+  });
+}
+
+function state() {
+  const out = {};
+  for (const id of Object.keys(bots)) {
+    out[id] = {
+      running: !!bots[id].proc,
+      name: configs[id].name,
+      target: configs[id].target
+    };
+  }
+  return out;
+}
+
+function broadcastState() {
+  const msg = JSON.stringify({ type: "state", bots: state() });
+  wss.clients.forEach(ws => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(msg);
   });
 }
 
 function startBot(id) {
   const b = bots[id], c = configs[id];
-  if (!b || b.proc) return { ok:false, error:"Bot already running" };
-  if (!c.password) return { ok:false, error:`BOT${id}_PASSWORD is not configured` };
+  if (!b) return { ok: false, error: "Unknown bot" };
+  if (b.proc) return { ok: false, error: "Bot already running" };
 
-  // The bot receives only its own configuration through environment variables.
   const env = {
     ...process.env,
+    VELOCITY_HOST: HOST,
+    VELOCITY_PORT: String(VELOCITY_PORT),
     BOT_TARGET: c.target,
     BOT_PASSWORD: c.password,
     BOT_NAME: c.name
@@ -44,68 +69,86 @@ function startBot(id) {
   const child = spawn(process.execPath, [BOT_ENTRY], {
     cwd: ROOT,
     env,
-    stdio: ["pipe","pipe","pipe"]
+    stdio: ["ignore", "pipe", "pipe"]
   });
 
   b.proc = child;
-  b.started = true;
-  addLog(id, `STARTED ${c.name} -> ${c.target}`);
+  addLog(id, `STARTED ${c.name} -> ${c.target} @ ${HOST}:${VELOCITY_PORT}`);
 
-  child.stdout.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => addLog(id, x)));
-  child.stderr.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => addLog(id, `[ERR] ${x}`)));
+  child.stdout.on("data", d =>
+    d.toString().split(/\r?\n/).filter(Boolean).forEach(x => addLog(id, x))
+  );
+  child.stderr.on("data", d =>
+    d.toString().split(/\r?\n/).filter(Boolean).forEach(x => addLog(id, `[ERR] ${x}`))
+  );
+
+  child.on("error", err => addLog(id, `[PROCESS ERROR] ${err.message}`));
+
   child.on("exit", (code, signal) => {
     b.proc = null;
     addLog(id, `STOPPED (code=${code}, signal=${signal || "none"})`);
     broadcastState();
   });
+
   broadcastState();
-  return { ok:true };
+  return { ok: true };
 }
 
 function stopBot(id) {
   const b = bots[id];
-  if (!b || !b.proc) return { ok:false, error:"Bot is not running" };
+  if (!b) return { ok: false, error: "Unknown bot" };
+  if (!b.proc) return { ok: false, error: "Bot is not running" };
   addLog(id, "STOP requested by panel");
-  // SIGTERM stops the Node bot process; it does NOT send Minecraft /stop.
   b.proc.kill("SIGTERM");
-  return { ok:true };
-}
-
-function state() {
-  const s = {};
-  for (const id of Object.keys(bots)) {
-    s[id] = { running: !!bots[id].proc, name: configs[id].name, target: configs[id].target };
-  }
-  return s;
-}
-function broadcastState() {
-  const msg = JSON.stringify({type:"state", bots:state()});
-  wss.clients.forEach(ws => { if (ws.readyState === WebSocket.OPEN) ws.send(msg); });
+  return { ok: true };
 }
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-function auth(req,res,next) {
-  const token = req.headers.authorization?.replace(/^Bearer\s+/i,"") || req.query.token;
-  if (!token || token !== PANEL_TOKEN) return res.status(401).json({ok:false,error:"Unauthorized"});
+function auth(req, res, next) {
+  const token =
+    req.headers.authorization?.replace(/^Bearer\s+/i, "") ||
+    req.query.token;
+
+  if (!token || token !== PANEL_TOKEN) {
+    return res.status(401).json({ ok: false, error: "Unauthorized" });
+  }
   next();
 }
 
-app.get("/api/state", auth, (req,res)=>res.json({ok:true,bots:state()}));
-app.get("/api/logs/:id", auth, (req,res)=>{
-  if (!bots[req.params.id]) return res.status(404).json({ok:false,error:"Unknown bot"});
-  res.json({ok:true,log:bots[req.params.id].log});
+app.get("/health", (_req, res) => res.status(200).send("GamerPointMC Bot Panel OK"));
+app.get("/api/config", auth, (_req, res) =>
+  res.json({
+    ok: true,
+    host: HOST,
+    port: VELOCITY_PORT,
+    bots: Object.fromEntries(
+      Object.entries(configs).map(([id, c]) => [id, { name: c.name, target: c.target }])
+    )
+  })
+);
+app.get("/api/state", auth, (_req, res) => res.json({ ok: true, bots: state() }));
+app.get("/api/logs/:id", auth, (req, res) => {
+  if (!bots[req.params.id]) return res.status(404).json({ ok: false, error: "Unknown bot" });
+  res.json({ ok: true, log: bots[req.params.id].log });
 });
-app.post("/api/bots/:id/start", auth, (req,res)=>res.json(startBot(req.params.id)));
-app.post("/api/bots/:id/stop", auth, (req,res)=>res.json(stopBot(req.params.id)));
+app.post("/api/bots/:id/start", auth, (req, res) => res.json(startBot(req.params.id)));
+app.post("/api/bots/:id/stop", auth, (req, res) => res.json(stopBot(req.params.id)));
 
 const server = http.createServer(app);
-const wss = new WebSocket.Server({server, path:"/ws"});
+const wss = new WebSocket.Server({ server, path: "/ws" });
 
 wss.on("connection", ws => {
-  ws.send(JSON.stringify({type:"state",bots:state()}));
+  ws.send(JSON.stringify({ type: "state", bots: state() }));
+  for (const id of Object.keys(bots)) {
+    for (const line of bots[id].log.slice(-100)) {
+      ws.send(JSON.stringify({ type: "log", id, line }));
+    }
+  }
 });
 
-server.listen(PORT, ()=>console.log(`GamerPointMC panel listening on :${PORT}`));
+server.listen(PORT, "0.0.0.0", () =>
+  console.log(`GamerPointMC panel listening on 0.0.0.0:${PORT}`)
+);
