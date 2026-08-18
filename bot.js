@@ -2,7 +2,7 @@ const mineflayer = require("mineflayer");
 
 const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.VELOCITY_PORT || 25565);
-const USERNAME = process.env.BOT_NAME || "GPMCBot";
+const USERNAME = process.env.BOT_NAME || "Lobby";
 const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
 const TARGET = process.env.BOT_TARGET || "lobby";
 const MC_VERSION = process.env.MC_VERSION || "1.21.11";

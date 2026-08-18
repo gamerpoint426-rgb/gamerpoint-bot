@@ -9,10 +9,10 @@ Velocity default: play.gamerpointmc.qzz.io:25565
 Minecraft bot version default: 1.21.11
 
 Four bots:
-1 GPMCBot-Lobby / lobby / Notgpbot1
-2 GPMCBot-Survival / survival / Notgpbot2
-3 GPMCBot-MiniGame / minigame / Notgpbot3
-4 GPMCBot-OneBlock / oneblock / Notgpbot4
+1 Lobby / lobby / Notgpbot1
+2 Survival / survival / Notgpbot2
+3 MiniGame / minigame / Notgpbot3
+4 OneBlock / oneblock / Notgpbot4
 
 Panel features:
 - Per-bot settings dropdown
