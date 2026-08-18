@@ -18,10 +18,10 @@ const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
 
 const configs = {
-  "1": { name: "GPMCBot-Lobby", target: "lobby", password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "2": { name: "GPMCBot-Survival", target: "survival", password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "3": { name: "GPMCBot-MiniGame", target: "minigame", password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "4": { name: "GPMCBot-OneBlock", target: "oneblock", password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
+  "1": { name: "Lobby", target: "lobby", password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "2": { name: "Survival", target: "survival", password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "3": { name: "MiniGame", target: "minigame", password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "4": { name: "OneBlock", target: "oneblock", password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
 };
 
 const bots = {};
