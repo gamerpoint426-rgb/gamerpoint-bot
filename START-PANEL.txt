@@ -1,3 +1,0 @@
-Open panel/index.html in a browser for the GamerPointMC bot control panel.
-The panel UI includes per-bot start/stop switches and Copy Log.
-For real remote process control, wire the documented API endpoints to the Node process.
