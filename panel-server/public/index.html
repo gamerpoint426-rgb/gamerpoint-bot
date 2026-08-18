@@ -33,57 +33,14 @@ pre{margin:12px 0 0;height:390px;overflow:auto;background:#05080d;border:1px sol
 <div class="card"><div class="consoleHead"><h2>Live Console</h2><div class="buttons"><button onclick="copyLog()">Copy Log</button><button onclick="clearLog()">Clear</button><button class="danger" onclick="stopAll()">Stop All</button></div></div><pre id="console"></pre></div>
 </div>
 <script>
-let token=localStorage.getItem("gpmc_token");
-if(!token) token=prompt("Enter PANEL_TOKEN");
-if(token) localStorage.setItem("gpmc_token",token);
-const C=document.getElementById("console");
-const ids=["1","2","3","4"];
-let state={};
-let config={};
-function add(s){C.textContent+=s+"\\n";C.scrollTop=C.scrollHeight}
-function render(){
- const el=document.getElementById("bots"); el.innerHTML=""; let n=0;
- for(const id of ids){
-  const b=state[id]||{running:false};
-  if(b.running)n++;
-  el.innerHTML+=`<div class="bot"><div class="row"><div><div class="name"><span class="dot ${b.running?"on":""}"></span>${b.name||"Bot "+id}</div><div class="status">Target: ${b.target||"unknown"} • ${b.running?"RUNNING":"STOPPED"}</div></div><label class="switch"><input type="checkbox" ${b.running?"checked":""} onchange="toggle('${id}',this.checked)"><span class="slider"></span></label></div></div>`;
- }
- document.getElementById("count").textContent=`${n} / 4`;
-}
-async function api(url,method="GET"){
- const r=await fetch(url,{method,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});
- return r.json();
-}
-async function toggle(id,on){
- add(`[panel] ${on?"START":"STOP"} requested for bot ${id}`);
- const x=await api(`/api/bots/${id}/${on?"start":"stop"}`,"POST");
- if(!x.ok)add(`[error] ${x.error}`);
- await load();
-}
-async function stopAll(){
- for(const id of ids) if(state[id]?.running){
-  const x=await api(`/api/bots/${id}/stop`,"POST");
-  if(!x.ok)add(`[error] Bot ${id}: ${x.error}`);
- }
- await load();
-}
-async function load(){
- if(!token){add("[error] PANEL_TOKEN is required");return}
- const x=await api("/api/state");
- if(x.ok){state=x.bots;render()}else add("[error] Unauthorized. Clear localStorage and reload.");
- const c=await api("/api/config");
- if(c.ok){config=c;document.getElementById("host").textContent=`${c.host}:${c.port}`}
-}
-async function copyLog(){await navigator.clipboard.writeText(C.textContent);add("[panel] Log copied")}
-function clearLog(){C.textContent=""}
-const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");
-ws.onopen=()=>add("[panel] Connected to live panel");
-ws.onclose=()=>add("[panel] Live connection closed; controls still work after reload");
-ws.onmessage=e=>{
- const x=JSON.parse(e.data);
- if(x.type==="log")add(x.line);
- if(x.type==="state"){state=x.bots;render()}
-};
-load();
-setInterval(load,5000);
+const C=document.getElementById("console"); const ids=["1","2","3","4"]; let state={};
+function add(s){C.textContent+=s+"\n";C.scrollTop=C.scrollHeight}
+function render(){const el=document.getElementById("bots");el.innerHTML="";let n=0;for(const id of ids){const b=state[id]||{running:false};if(b.running)n++;el.innerHTML+=`<div class="bot"><div class="row"><div><div class="name"><span class="dot ${b.running?"on":""}"></span>${b.name||"Bot "+id}</div><div class="status">Target: ${b.target||"unknown"} • ${b.running?"RUNNING":"STOPPED"}</div></div><label class="switch"><input type="checkbox" ${b.running?"checked":""} onchange="toggle('${id}',this.checked)"><span class="slider"></span></label></div></div>`}document.getElementById("count").textContent=`${n} / 4`}
+async function api(url,method="GET"){const r=await fetch(url,{method,headers:{"Content-Type":"application/json"}});if(r.status===401){location.href='/';return {ok:false,error:'Session expired'}}return r.json()}
+async function toggle(id,on){add(`[panel] ${on?"START":"STOP"} requested for bot ${id}`);const x=await api(`/api/bots/${id}/${on?"start":"stop"}`,"POST");if(!x.ok)add(`[error] ${x.error}`);await load()}
+async function stopAll(){for(const id of ids)if(state[id]?.running){const x=await api(`/api/bots/${id}/stop`,"POST");if(!x.ok)add(`[error] Bot ${id}: ${x.error}`)}await load()}
+async function load(){const x=await api("/api/state");if(x.ok){state=x.bots;render()}const c=await api("/api/config");if(c.ok)document.getElementById("host").textContent=`${c.host}:${c.port}`}
+async function copyLog(){await navigator.clipboard.writeText(C.textContent);add("[panel] Log copied")};function clearLog(){C.textContent=""}
+function connectWS(){const ws=new WebSocket((location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws");ws.onopen=()=>add("[panel] Connected to live panel");ws.onclose=()=>{add("[panel] Live connection closed; reconnecting...");setTimeout(connectWS,3000)};ws.onmessage=e=>{const x=JSON.parse(e.data);if(x.type==="log")add(x.line);if(x.type==="state"){state=x.bots;render()}}}
+connectWS();load();setInterval(load,5000);
 </script></body></html>
