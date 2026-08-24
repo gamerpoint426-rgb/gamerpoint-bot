@@ -1,4 +1,6 @@
 const mineflayer = require("mineflayer");
+const fs = require("fs");
+const path = require("path");
 
 const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.VELOCITY_PORT || 25565);
@@ -15,6 +17,9 @@ const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 3)
 const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 0));
 const RECONNECT_DELAY = Math.max(3000, Number(process.env.RECONNECT_DELAY_MS || 5000));
 const DEBUG_CHAT = String(process.env.DEBUG_CHAT || "true").toLowerCase() !== "false";
+const DOWNLOAD_RESOURCE_PACK = String(process.env.DOWNLOAD_RESOURCE_PACK || "true").toLowerCase() !== "false";
+const RESOURCE_PACK_DIR = process.env.RESOURCE_PACK_DIR || path.join(__dirname, "resource-packs");
+
 
 let bot = null;
 let authenticated = false;
@@ -44,6 +49,84 @@ function readableReason(reason) {
   try { return JSON.stringify(reason); } catch { return String(reason); }
 }
 function messageText(jsonMsg) { try { return jsonMsg.toString(); } catch { return String(jsonMsg); } }
+
+function uuidText(uuid) {
+  if (uuid == null) return "unknown";
+  if (typeof uuid === "string") return uuid;
+  try { if (typeof uuid.toString === "function") return uuid.toString(); } catch {}
+  return String(uuid);
+}
+
+async function downloadResourcePack(url, uuid) {
+  if (!DOWNLOAD_RESOURCE_PACK || !url || !/^https?:\/\//i.test(String(url))) return;
+  try {
+    fs.mkdirSync(RESOURCE_PACK_DIR, { recursive: true });
+    const safe = uuidText(uuid).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const file = path.join(RESOURCE_PACK_DIR, `${safe}.zip`);
+    log(`[ResourcePack] Downloading ${url}`);
+    const response = await fetch(url, { redirect: "follow" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    fs.writeFileSync(file, buffer);
+    log(`[ResourcePack] Downloaded ${(buffer.length / 1024 / 1024).toFixed(2)} MB -> ${file}`);
+  } catch (err) {
+    log(`[ResourcePack] Download failed: ${err.message}`);
+  }
+}
+
+function attachResourcePackHandlers() {
+  if (!bot || !bot._client) return;
+  const client = bot._client;
+
+  // Minecraft 1.21.x: server sends add_resource_pack and expects
+  // resource_pack_receive with result 3 (accepted), then 0 (successfully loaded).
+  client.on("add_resource_pack", data => {
+    const uuid = data && data.uuid;
+    const url = data && data.url;
+    log(`[ResourcePack] Server requested pack${url ? `: ${url}` : ""}`);
+    try {
+      client.write("resource_pack_receive", { uuid, result: 3 });
+      log("[ResourcePack] Accepted.");
+    } catch (err) {
+      log(`[ResourcePack] Accept packet failed: ${err.message}`);
+      return;
+    }
+    downloadResourcePack(url, uuid);
+    setTimeout(() => {
+      try {
+        client.write("resource_pack_receive", { uuid, result: 0 });
+        log("[ResourcePack] Reported successfully loaded.");
+      } catch (err) {
+        log(`[ResourcePack] Loaded packet failed: ${err.message}`);
+      }
+    }, 1000);
+  });
+
+  // Older protocol fallback.
+  client.on("resource_pack_send", data => {
+    const hash = data && data.hash;
+    const url = data && data.url;
+    log(`[ResourcePack] Legacy pack requested${url ? `: ${url}` : ""}`);
+    try {
+      client.write("resource_pack_receive", { hash, result: 3 });
+      setTimeout(() => {
+        try { client.write("resource_pack_receive", { hash, result: 0 }); } catch {}
+      }, 1000);
+      downloadResourcePack(url, hash);
+    } catch (err) {
+      log(`[ResourcePack] Legacy response failed: ${err.message}`);
+    }
+  });
+
+  client.on("select_known_packs", data => {
+    try {
+      client.write("select_known_packs", { packs: data && data.packs ? data.packs : [] });
+      log("[ResourcePack] Replied to select_known_packs.");
+    } catch (err) {
+      log(`[ResourcePack] select_known_packs failed: ${err.message}`);
+    }
+  });
+}
 
 function scheduleReconnect() {
   if (stopping || reconnectTimer) return;
@@ -157,7 +240,8 @@ function connect() {
 
   log(`Connecting to ${HOST}:${PORT} -> ${TARGET} (MC ${MC_VERSION})`);
   try {
-    bot = mineflayer.createBot({ host: HOST, port: PORT, username: USERNAME, version: MC_VERSION, auth: "offline", hideErrors: true });
+    bot = mineflayer.createBot({ host: HOST, port: PORT, username: USERNAME, version: MC_VERSION, auth: "offline", hideErrors: false, checkTimeoutInterval: 30000 });
+    attachResourcePackHandlers();
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
 
   bot.once("spawn", () => {
