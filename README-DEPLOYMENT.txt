@@ -39,3 +39,6 @@ Startup fix: bot.js was corrected so the createBot() configuration contains real
 
 
 JOIN FIX (2026-08-24): Removed the custom client-brand packet injection/fallback. Mineflayer's native `brand: CLIENT_BRAND` handling is now the only client-brand sender, preventing Sonar's duplicate-brand kick. No Sonar-specific fingerprinting is added.
+
+
+FINAL BRAND FIX: Removed all custom brand packet injection and writeChannel interception. Mineflayer 4.37.1 is solely responsible for minecraft:brand. The createBot option remains brand: CLIENT_BRAND (default vanilla).

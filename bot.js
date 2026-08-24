@@ -173,38 +173,7 @@ function connect() {
 
   
   
-  // if no brand packet has actually gone through writeChannel yet, so this does
-  // not duplicate the normal Mineflayer packet or spoof an anti-bot fingerprint.
-  if (bot._client) {
-    const client = bot._client;
-    let brandSent = false;
-    const originalWriteChannel = client.writeChannel.bind(client);
-
-    client.writeChannel = (channel, data) => {
-      const channelName = String(channel);
-      if (channelName === "minecraft:brand" || channelName === "MC|Brand") {
-        brandSent = true;
-        log(`[PROTOCOL] client brand sent: ${String(data)}`);
-      }
-      return originalWriteChannel(channel, data);
-    };
-
-    const sendBrandFallback = (state) => {
-      if (brandSent || !client.writeChannel) return;
-      try {
-        client.writeChannel("minecraft:brand", CLIENT_BRAND);
-        log(`[PROTOCOL] client brand fallback sent during ${state}: ${CLIENT_BRAND}`);
-      } catch (err) {
-        log(`[PROTOCOL] client brand fallback failed during ${state}: ${err.message || err}`);
-      }
-    };
-
-    // Minecraft 1.20.2+ has a configuration state. Send the standard brand
-    // there if Mineflayer did not already send it.
-    client.prependListener("finish_configuration", () => sendBrandFallback("configuration"));
-    client.once("login", () => sendBrandFallback("login"));
-
-    log(`Protocol client initialized: version=${MC_VERSION}, brand=${CLIENT_BRAND}`);
+  log(`Protocol client initialized: version=${MC_VERSION}, brand=${CLIENT_BRAND}`);
     client.on("error", err => log(`Protocol error: ${err && err.stack ? err.stack : err.message || err}`));
   }
 
