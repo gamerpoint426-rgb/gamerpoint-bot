@@ -171,12 +171,41 @@ function connect() {
     });
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
 
-  // Protocol diagnostics: useful when a proxy/anti-bot plugin reports a missing
-  // client brand. Mineflayer handles the actual brand packet; these logs expose
-  // the negotiated protocol and disconnect reason without spoofing the check.
+  // Protocol diagnostics + standards-compliant client-brand fallback.
+  // Mineflayer normally sends minecraft:brand itself. We only send a fallback
+  // if no brand packet has actually gone through writeChannel yet, so this does
+  // not duplicate the normal Mineflayer packet or spoof an anti-bot fingerprint.
   if (bot._client) {
+    const client = bot._client;
+    let brandSent = false;
+    const originalWriteChannel = client.writeChannel.bind(client);
+
+    client.writeChannel = (channel, data) => {
+      const channelName = String(channel);
+      if (channelName === "minecraft:brand" || channelName === "MC|Brand") {
+        brandSent = true;
+        log(`[PROTOCOL] client brand sent: ${String(data)}`);
+      }
+      return originalWriteChannel(channel, data);
+    };
+
+    const sendBrandFallback = (state) => {
+      if (brandSent || !client.writeChannel) return;
+      try {
+        client.writeChannel("minecraft:brand", CLIENT_BRAND);
+        log(`[PROTOCOL] client brand fallback sent during ${state}: ${CLIENT_BRAND}`);
+      } catch (err) {
+        log(`[PROTOCOL] client brand fallback failed during ${state}: ${err.message || err}`);
+      }
+    };
+
+    // Minecraft 1.20.2+ has a configuration state. Send the standard brand
+    // there if Mineflayer did not already send it.
+    client.prependListener("finish_configuration", () => sendBrandFallback("configuration"));
+    client.once("login", () => sendBrandFallback("login"));
+
     log(`Protocol client initialized: version=${MC_VERSION}, brand=${CLIENT_BRAND}`);
-    bot._client.on("error", err => log(`Protocol error: ${err && err.stack ? err.stack : err.message || err}`));
+    client.on("error", err => log(`Protocol error: ${err && err.stack ? err.stack : err.message || err}`));
   }
 
   bot.once("spawn", () => {
