@@ -6,6 +6,9 @@ const USERNAME = process.env.BOT_NAME || "Lobby";
 const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
 const TARGET = (process.env.BOT_TARGET || "lobby").toLowerCase();
 const MC_VERSION = process.env.MC_VERSION || "1.21.11";
+// Standard Minecraft client-brand value. Mineflayer sends this through the
+// protocol at the appropriate state for the negotiated Minecraft version.
+const CLIENT_BRAND = process.env.CLIENT_BRAND || "vanilla";
 const LOGIN_DELAY = Math.max(0, Number(process.env.LOGIN_DELAY_MS || 1500));
 const LOGIN_RETRY_INTERVAL = Math.max(5000, Number(process.env.LOGIN_RETRY_INTERVAL_MS || 7000));
 const MAX_LOGIN_RETRIES = Math.max(1, Number(process.env.MAX_LOGIN_RETRIES || 3));
@@ -157,8 +160,16 @@ function connect() {
 
   log(`Connecting to ${HOST}:${PORT} -> ${TARGET} (MC ${MC_VERSION})`);
   try {
-    bot = mineflayer.createBot({ host: HOST, port: PORT, username: USERNAME, version: MC_VERSION, auth: "offline", hideErrors: true });
+    bot = mineflayer.createBot({\n      host: HOST,\n      port: PORT,\n      username: USERNAME,\n      version: MC_VERSION,\n      auth: "offline",\n      brand: CLIENT_BRAND,\n      hideErrors: false\n    });
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
+
+  // Protocol diagnostics: useful when a proxy/anti-bot plugin reports a missing
+  // client brand. Mineflayer handles the actual brand packet; these logs expose
+  // the negotiated protocol and disconnect reason without spoofing the check.
+  if (bot._client) {
+    log(`Protocol client initialized: version=${MC_VERSION}, brand=${CLIENT_BRAND}`);
+    bot._client.on("error", err => log(`Protocol error: ${err && err.stack ? err.stack : err.message || err}`));
+  }
 
   bot.once("spawn", () => {
     log("Connected to proxy; waiting for authentication.");
@@ -183,7 +194,10 @@ function connect() {
     if (isLoginPrompt(raw)) { loginSent = false; sendLogin(); return; }
   });
 
-  bot.on("kicked", reason => log(`KICKED reason: ${readableReason(reason)}`));
+  bot.on("kicked", reason => {
+    log(`KICKED reason: ${readableReason(reason)}`);
+    log(`Connection diagnostics: MC=${MC_VERSION}, clientBrand=${CLIENT_BRAND}, auth=offline`);
+  });
   bot.on("error", err => log(`Error: ${err && err.stack ? err.stack : err.message || err}`));
   bot.on("end", reason => {
     log(`Disconnected: ${readableReason(reason)}`);

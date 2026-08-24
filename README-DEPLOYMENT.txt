@@ -26,3 +26,10 @@ Panel features:
 - Detected current server when the bot reports it
 - Save settings and restart that bot
 - Direct Railway panel; no external API
+
+
+Protocol compatibility update (2026-08-24):
+- Mineflayer upgraded to ^4.37.1 for current Minecraft 1.21.11 protocol support.
+- The bot now explicitly sets the standard client brand to "vanilla".
+- Node.js runtime requirement is >=22 to match the current Mineflayer release.
+- Protocol/kick diagnostics are enabled so a server-side rejection can be distinguished from a missing brand packet.
