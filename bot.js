@@ -160,7 +160,15 @@ function connect() {
 
   log(`Connecting to ${HOST}:${PORT} -> ${TARGET} (MC ${MC_VERSION})`);
   try {
-    bot = mineflayer.createBot({\n      host: HOST,\n      port: PORT,\n      username: USERNAME,\n      version: MC_VERSION,\n      auth: "offline",\n      brand: CLIENT_BRAND,\n      hideErrors: false\n    });
+    bot = mineflayer.createBot({
+      host: HOST,
+      port: PORT,
+      username: USERNAME,
+      version: MC_VERSION,
+      auth: "offline",
+      brand: CLIENT_BRAND,
+      hideErrors: false
+    });
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
 
   // Protocol diagnostics: useful when a proxy/anti-bot plugin reports a missing

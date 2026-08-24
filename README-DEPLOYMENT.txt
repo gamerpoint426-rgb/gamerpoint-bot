@@ -33,3 +33,6 @@ Protocol compatibility update (2026-08-24):
 - The bot now explicitly sets the standard client brand to "vanilla".
 - Node.js runtime requirement is >=22 to match the current Mineflayer release.
 - Protocol/kick diagnostics are enabled so a server-side rejection can be distinguished from a missing brand packet.
+
+
+Startup fix: bot.js was corrected so the createBot() configuration contains real JavaScript line breaks. The previous archive accidentally contained literal \\n sequences, which caused Node.js SyntaxError before Mineflayer could start.
