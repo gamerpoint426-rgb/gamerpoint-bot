@@ -36,3 +36,6 @@ Protocol compatibility update (2026-08-24):
 
 
 Startup fix: bot.js was corrected so the createBot() configuration contains real JavaScript line breaks. The previous archive accidentally contained literal \\n sequences, which caused Node.js SyntaxError before Mineflayer could start.
+
+
+JOIN FIX (2026-08-24): Removed the custom client-brand packet injection/fallback. Mineflayer's native `brand: CLIENT_BRAND` handling is now the only client-brand sender, preventing Sonar's duplicate-brand kick. No Sonar-specific fingerprinting is added.

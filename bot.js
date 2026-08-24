@@ -171,8 +171,8 @@ function connect() {
     });
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
 
-  // Protocol diagnostics + standards-compliant client-brand fallback.
-  // Mineflayer normally sends minecraft:brand itself. We only send a fallback
+  
+  
   // if no brand packet has actually gone through writeChannel yet, so this does
   // not duplicate the normal Mineflayer packet or spoof an anti-bot fingerprint.
   if (bot._client) {
