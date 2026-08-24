@@ -118,14 +118,7 @@ function attachResourcePackHandlers() {
     }
   });
 
-  client.on("select_known_packs", data => {
-    try {
-      client.write("select_known_packs", { packs: data && data.packs ? data.packs : [] });
-      log("[ResourcePack] Replied to select_known_packs.");
-    } catch (err) {
-      log(`[ResourcePack] select_known_packs failed: ${err.message}`);
-    }
-  });
+
 }
 
 function scheduleReconnect() {
