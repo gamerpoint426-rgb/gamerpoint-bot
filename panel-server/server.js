@@ -21,7 +21,11 @@ const configs = {
   "1": { name: "Lobby", target: "lobby", host: process.env.BOT1_HOST || "lobby.gamerpoint.net", port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "2": { name: "Survival", target: "survival", host: process.env.BOT2_HOST || "survival.gamerpoint.net", port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "3": { name: "MiniGame", target: "minigame", host: process.env.BOT3_HOST || "minigame.gamerpoint.net", port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "4": { name: "OneBlock", target: "oneblock", host: process.env.BOT4_HOST || "oneblock.gamerpoint.net", port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
+  "4": { name: "OneBlock", target: "oneblock", host: process.env.BOT4_HOST || "oneblock.gamerpoint.net", port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "5": { name: "Bot5", target: "lobby", host: process.env.BOT5_HOST || "lobby.gamerpoint.net", port: Number(process.env.BOT5_PORT || 25565), password: process.env.BOT5_PASSWORD || "Notgpbot5", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "6": { name: "Bot6", target: "survival", host: process.env.BOT6_HOST || "survival.gamerpoint.net", port: Number(process.env.BOT6_PORT || 25565), password: process.env.BOT6_PASSWORD || "Notgpbot6", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "7": { name: "Bot7", target: "minigame", host: process.env.BOT7_HOST || "minigame.gamerpoint.net", port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "8": { name: "Bot8", target: "oneblock", host: process.env.BOT8_HOST || "oneblock.gamerpoint.net", port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
 };
 
 const bots = {};
@@ -78,6 +82,7 @@ function stopBot(id) {
 }
 function updateConfig(id, body) {
   const c = configs[id]; if (!c) return { ok: false, error: "Unknown bot" };
+  if (body.name !== undefined) { const name = String(body.name).trim(); if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return { ok: false, error: "Invalid bot name (1-16 letters, numbers, underscore)" }; c.name = name; }
   if (body.target !== undefined) { const t = String(body.target).trim().toLowerCase(); if (!/^[a-z0-9_-]{1,32}$/.test(t)) return { ok: false, error: "Invalid target server" }; c.target = t; }
   if (body.password !== undefined) { const p = String(body.password); if (!p || p.length > 100) return { ok: false, error: "Invalid password" }; c.password = p; }
   if (body.host !== undefined) { const h = String(body.host).trim().toLowerCase(); if (!/^[a-z0-9.-]{1,253}$/.test(h)) return { ok: false, error: "Invalid host" }; c.host = h; }
