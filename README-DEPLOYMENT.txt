@@ -5,7 +5,13 @@ Build: npm install
 Start: npm start
 
 Panel password default: NotgpPanel1
-Velocity default: play.gamerpointmc.qzz.io:25565
+Direct per-bot server defaults:
+- Lobby: lobby.gamerpoint.net:25565
+- Survival: survival.gamerpoint.net:25565
+- MiniGame: minigame.gamerpoint.net:25565
+- OneBlock: oneblock.gamerpoint.net:25565
+
+Reconnect default: 5 minutes after kick/disconnect
 Minecraft bot version default: 1.21.11
 
 Four bots:
@@ -16,7 +22,9 @@ Four bots:
 
 Panel features:
 - Per-bot settings dropdown
+- Per-bot direct host and port
 - Change target server
+- Change direct server host/port
 - Change bot password
 - Periodic disconnect interval (0 disables)
 - Reconnect delay

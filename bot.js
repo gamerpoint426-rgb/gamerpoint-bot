@@ -2,11 +2,12 @@ const mineflayer = require("mineflayer");
 const fs = require("fs");
 const path = require("path");
 
-const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
+const HOST = process.env.BOT_HOST || process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.VELOCITY_PORT || 25565);
 const USERNAME = process.env.BOT_NAME || "Lobby";
 const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
 const TARGET = (process.env.BOT_TARGET || "lobby").toLowerCase();
+const DIRECT_CONNECT = String(process.env.DIRECT_CONNECT || "false").toLowerCase() === "true";
 const MC_VERSION = process.env.MC_VERSION || "1.21.11";
 const LOGIN_DELAY = Math.max(0, Number(process.env.LOGIN_DELAY_MS || 1500));
 const LOGIN_RETRY_INTERVAL = Math.max(5000, Number(process.env.LOGIN_RETRY_INTERVAL_MS || 7000));
@@ -186,7 +187,7 @@ function sendLogin() {
   log(`Sending /login attempt ${loginAttempts}/${MAX_LOGIN_RETRIES}`);
   try {
     bot.chat(`/login ${PASSWORD}`);
-    if (TARGET !== "lobby") {
+    if (!DIRECT_CONNECT && TARGET !== "lobby") {
       if (routeTimer) clearTimeout(routeTimer);
       routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_DELAY);
       log(`Target ${TARGET}: server switch scheduled after login delay.`);
@@ -196,7 +197,7 @@ function sendLogin() {
 
 function sendRoute() {
   if (!bot || stopping || routeSent) return;
-  if (!TARGET || TARGET === "lobby") { routeSent = true; log("Target is lobby; no server switch required."); schedulePeriodicDisconnect(); return; }
+  if (DIRECT_CONNECT || !TARGET || TARGET === "lobby") { routeSent = true; log(DIRECT_CONNECT ? `Direct connection to ${HOST}:${PORT}; no /server switch required.` : "Target is lobby; no server switch required."); schedulePeriodicDisconnect(); return; }
   if (!authenticated && !loginSent) return;
   if (routeAttempts >= MAX_ROUTE_RETRIES) { log(`Server switch retry limit reached (${MAX_ROUTE_RETRIES}) for ${TARGET}.`); return schedulePeriodicDisconnect(); }
   routeAttempts++;
@@ -216,7 +217,7 @@ function markAuthenticated(source) {
   loginSent = true;
   routeAttempts = 0;
   log(`Authentication detected (${source}).`);
-  if (TARGET === "lobby") { routeSent = true; schedulePeriodicDisconnect(); return; }
+  if (DIRECT_CONNECT || TARGET === "lobby") { routeSent = true; schedulePeriodicDisconnect(); return; }
   if (routeTimer) clearTimeout(routeTimer);
   routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_DELAY);
   log(`Target ${TARGET}: server switch scheduled in ${Math.round(ROUTE_DELAY / 1000)} seconds.`);
@@ -238,7 +239,7 @@ function connect() {
   } catch (err) { log(`Create bot error: ${err.message}`); return scheduleReconnect(); }
 
   bot.once("spawn", () => {
-    log("Connected to proxy; waiting for authentication.");
+    log(DIRECT_CONNECT ? `Connected directly to ${HOST}:${PORT}; waiting for authentication.` : "Connected to proxy; waiting for authentication.");
     loginTimer = setTimeout(() => { loginTimer = null; if (!authenticated && !loginSent) sendLogin(); }, LOGIN_DELAY);
   });
 
@@ -260,7 +261,11 @@ function connect() {
     if (isLoginPrompt(raw)) { loginSent = false; sendLogin(); return; }
   });
 
-  bot.on("kicked", reason => log(`KICKED reason: ${readableReason(reason)}`));
+  bot.on("kicked", reason => {
+    log(`KICKED reason: ${readableReason(reason)}`);
+    // Mineflayer normally follows kicked with end; this guard also ensures a 5-minute reconnect if it does not.
+    scheduleReconnect();
+  });
   bot.on("error", err => log(`Error: ${err && err.stack ? err.stack : err.message || err}`));
   bot.on("end", reason => {
     log(`Disconnected: ${readableReason(reason)}`);
