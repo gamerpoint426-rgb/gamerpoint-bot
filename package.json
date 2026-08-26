@@ -1,18 +1,13 @@
 {
   "name": "gamerpointmc-bot-panel",
-  "version": "5.0.0",
+  "version": "7.0.0",
   "private": true,
-  "main": "panel-server/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node panel-server/server.js",
-    "panel": "node panel-server/server.js"
-  },
-  "engines": {
-    "node": ">=22"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^5.1.0",
-    "mineflayer": "^4.37.1",
     "ws": "^8.18.0"
   }
 }
