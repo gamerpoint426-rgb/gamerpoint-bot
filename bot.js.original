@@ -12,9 +12,9 @@ const MC_VERSION = process.env.MC_VERSION || "1.21.11";
 const LOGIN_DELAY = Math.max(0, Number(process.env.LOGIN_DELAY_MS || 1500));
 const LOGIN_RETRY_INTERVAL = Math.max(5000, Number(process.env.LOGIN_RETRY_INTERVAL_MS || 7000));
 const MAX_LOGIN_RETRIES = Math.max(1, Number(process.env.MAX_LOGIN_RETRIES || 3));
-const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 4000));
+const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 5000));
 const ROUTE_RETRY_INTERVAL = Math.max(5000, Number(process.env.ROUTE_RETRY_INTERVAL_MS || 7000));
-const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 8));
+const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 3));
 const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 0));
 const RECONNECT_DELAY = Math.max(3000, Number(process.env.RECONNECT_DELAY_MS || 5000));
 const DEBUG_CHAT = String(process.env.DEBUG_CHAT || "true").toLowerCase() !== "false";
@@ -187,29 +187,23 @@ function sendLogin() {
   log(`Sending /login attempt ${loginAttempts}/${MAX_LOGIN_RETRIES}`);
   try {
     bot.chat(`/login ${PASSWORD}`);
-    // Do not immediately switch while LimboAuth is still processing /login.
-    // markAuthenticated() will schedule the first /server command after the
-    // proxy confirms authentication. If the plugin does not send a success
-    // message, the login prompt handler below still gives us a fallback route.
-    log(`Login command sent; waiting for authentication before routing to ${TARGET}.`);
+    if (!DIRECT_CONNECT && TARGET !== "lobby") {
+      if (routeTimer) clearTimeout(routeTimer);
+      routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_DELAY);
+      log(`Target ${TARGET}: server switch scheduled after login delay.`);
+    }
   } catch (err) { loginSent = false; log(`Login command error: ${err.message}`); }
 }
 
 function sendRoute() {
   if (!bot || stopping || routeSent) return;
   if (DIRECT_CONNECT || !TARGET || TARGET === "lobby") { routeSent = true; log(DIRECT_CONNECT ? `Direct connection to ${HOST}:${PORT}; no /server switch required.` : "Target is lobby; no server switch required."); schedulePeriodicDisconnect(); return; }
-  // Never send /server while we are still waiting for LimboAuth.
-  if (!authenticated) {
-    log(`Waiting for authentication confirmation before switching to ${TARGET}.`);
-    return;
-  }
+  if (!authenticated && !loginSent) return;
   if (routeAttempts >= MAX_ROUTE_RETRIES) { log(`Server switch retry limit reached (${MAX_ROUTE_RETRIES}) for ${TARGET}.`); return schedulePeriodicDisconnect(); }
   routeAttempts++;
   log(`Switching to server ${TARGET} (attempt ${routeAttempts}/${MAX_ROUTE_RETRIES})`);
-  try {
-    bot.chat(`/server ${TARGET}`);
-    log(`Sent /server ${TARGET}.`);
-  } catch (err) { log(`Server switch command error: ${err.message}`); }
+  try { bot.chat(`/server ${TARGET}`); }
+  catch (err) { log(`Server switch command error: ${err.message}`); }
   if (routeAttempts < MAX_ROUTE_RETRIES && !routeSent) {
     if (routeTimer) clearTimeout(routeTimer);
     routeTimer = setTimeout(() => { routeTimer = null; sendRoute(); }, ROUTE_RETRY_INTERVAL);
@@ -246,23 +240,7 @@ function connect() {
 
   bot.once("spawn", () => {
     log(DIRECT_CONNECT ? `Connected directly to ${HOST}:${PORT}; waiting for authentication.` : "Connected to proxy; waiting for authentication.");
-    loginTimer = setTimeout(() => {
-      loginTimer = null;
-      if (!authenticated && !loginSent) sendLogin();
-      // Fallback for auth plugins that do not emit a recognizable success
-      // message: after the login command has had time to complete, try the
-      // requested Velocity server. This is still guarded by routeSent and
-      // the retry limit.
-      if (!DIRECT_CONNECT && TARGET !== "lobby" && !authenticated) {
-        setTimeout(() => {
-          if (bot && !stopping && !routeSent && loginSent) {
-            authenticated = true;
-            log("No explicit authentication-success message detected; using delayed routing fallback.");
-            sendRoute();
-          }
-        }, Math.max(ROUTE_DELAY, 4000));
-      }
-    }, LOGIN_DELAY);
+    loginTimer = setTimeout(() => { loginTimer = null; if (!authenticated && !loginSent) sendLogin(); }, LOGIN_DELAY);
   });
 
   bot.on("message", jsonMsg => {
@@ -279,14 +257,6 @@ function connect() {
       }
     }
     if (looksAuthenticated(raw)) { markAuthenticated("LimboAuth success message"); return; }
-    const lower = raw.toLowerCase();
-    if (TARGET !== "lobby" && !DIRECT_CONNECT && (
-      lower.includes("server not found") || lower.includes("unknown server") ||
-      lower.includes("no such server") || lower.includes("could not connect to") ||
-      lower.includes("you don't have permission") || lower.includes("no permission")
-    )) {
-      log(`[ROUTE] Proxy rejected /server ${TARGET}: ${raw}`);
-    }
     if (isRegisterPrompt(raw)) { loginSent = false; sendRegister(); return; }
     if (isLoginPrompt(raw)) { loginSent = false; sendLogin(); return; }
   });
