@@ -1,6 +1,6 @@
 const mineflayer = require("mineflayer");
 
-const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
+const HOST = process.env.VELOCITY_HOST || "notgamerpoint7.mcsh.io";
 const PORT = Number(process.env.VELOCITY_PORT || 25565);
 const USERNAME = process.env.BOT_NAME || "Lobby";
 const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
@@ -12,7 +12,7 @@ const MAX_LOGIN_RETRIES = Math.max(1, Number(process.env.MAX_LOGIN_RETRIES || 3)
 const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 5000));
 const ROUTE_RETRY_INTERVAL = Math.max(5000, Number(process.env.ROUTE_RETRY_INTERVAL_MS || 7000));
 const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 3));
-const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 0));
+const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 600000));
 const RECONNECT_DELAY = Math.max(3000, Number(process.env.RECONNECT_DELAY_MS || 5000));
 const DEBUG_CHAT = String(process.env.DEBUG_CHAT || "true").toLowerCase() !== "false";
 
