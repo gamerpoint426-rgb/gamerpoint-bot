@@ -2,7 +2,7 @@ const mineflayer = require("mineflayer");
 const fs = require("fs");
 const path = require("path");
 
-const HOST = process.env.BOT_HOST || process.env.VELOCITY_HOST || "notgamerpoint7.mcsh.io";
+const HOST = process.env.BOT_HOST || process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.BOT_PORT || process.env.VELOCITY_PORT || 25565);
 const USERNAME = process.env.BOT_NAME || "Lobby";
 const PASSWORD = process.env.BOT_PASSWORD || "Notgpbot1";
