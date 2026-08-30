@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "NotgpPanel1";
 const ROOT = path.resolve(__dirname, "..");
 const BOT_ENTRY = process.env.BOT_ENTRY || path.join(ROOT, "bot.js");
-const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
+const HOST = process.env.VELOCITY_HOST || "notgamerpoint7.mcsh.io";
 const VELOCITY_PORT = Number(process.env.VELOCITY_PORT || 25565);
 const DEFAULT_PROXY_RECONNECT = 60000;
 const DEFAULT_DIRECT_RECONNECT = 300000;
@@ -19,7 +19,7 @@ const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
 
 const configs = {
-  "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "notgamerpointmc.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "notgamerpoint7.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "2": { name: "Survival", target: "survival", mode: "proxy", host: process.env.BOT2_HOST || "survival.gamerpoint.net", proxyHost: HOST, port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "3": { name: "MiniGame", target: "minigame", mode: "proxy", host: process.env.BOT3_HOST || "minigame.gamerpoint.net", proxyHost: HOST, port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "4": { name: "OneBlock", target: "oneblock", mode: "direct", host: process.env.BOT4_HOST || "gamerpoint.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
