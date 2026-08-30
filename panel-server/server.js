@@ -9,7 +9,7 @@ const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "NotgpPanel1";
 const ROOT = path.resolve(__dirname, "..");
 const BOT_ENTRY = process.env.BOT_ENTRY || path.join(ROOT, "bot.js");
-const HOST = process.env.VELOCITY_HOST || "notgamerpoint7.mcsh.io";
+const HOST = process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const VELOCITY_PORT = Number(process.env.VELOCITY_PORT || 25565);
 const DEFAULT_PROXY_RECONNECT = 60000;
 const DEFAULT_DIRECT_RECONNECT = 300000;
@@ -19,13 +19,13 @@ const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
 
 const configs = {
-  "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "notgamerpoint7.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "2": { name: "Survival", target: "survival", mode: "proxy", host: process.env.BOT2_HOST || "survival.gamerpoint.net", proxyHost: HOST, port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "3": { name: "MiniGame", target: "minigame", mode: "proxy", host: process.env.BOT3_HOST || "minigame.gamerpoint.net", proxyHost: HOST, port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "2": { name: "Survival", target: "survival", mode: "proxy", host: process.env.BOT2_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "3": { name: "MiniGame", target: "minigame", mode: "proxy", host: process.env.BOT3_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_PROXY_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "4": { name: "OneBlock", target: "oneblock", mode: "direct", host: process.env.BOT4_HOST || "gamerpoint.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "5": { name: "Bot5", target: "survival", mode: "direct", host: process.env.BOT5_HOST || "gpmcsurvival.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT5_PORT || 25565), password: process.env.BOT5_PASSWORD || "Notgpbot5", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "6": { name: "Bot6", target: "minigame", mode: "direct", host: process.env.BOT6_HOST || "gpmcminigame.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT6_PORT || 25565), password: process.env.BOT6_PASSWORD || "Notgpbot6", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "7": { name: "Bot7", target: "survival", mode: "direct", host: process.env.BOT7_HOST || "gpmcbot7.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "7": { name: "Bot7", target: "survival", mode: "direct", host: process.env.BOT7_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "8": { name: "Bot8", target: "lobby", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
 };
 
