@@ -69,7 +69,7 @@ function startBot(id) {
   if (b.proc) return { ok: false, error: "Bot already running" };
   const connectHost = c.mode === "proxy" ? (c.proxyHost || HOST) : c.host;
   const env = { ...process.env, VELOCITY_HOST: HOST, VELOCITY_PORT: String(VELOCITY_PORT), BOT_HOST: connectHost, BOT_PORT: String(c.port), DIRECT_CONNECT: c.mode === "direct" ? "true" : "false", BOT_TARGET: c.target, BOT_PASSWORD: c.password, BOT_NAME: c.name, DISCONNECT_INTERVAL_MS: String(c.disconnectInterval), RECONNECT_DELAY_MS: String(c.reconnectDelay), ROUTE_DELAY_MS: String(c.routeDelay), LOGIN_DELAY_MS: String(c.loginDelay), MC_VERSION: process.env.MC_VERSION || "1.21.11" };
-  const child = spawn(process.execPath, [BOT_ENTRY], { cwd: ROOT, env, stdio: ["ignore", "pipe", "pipe"] });
+  const child = spawn(process.execPath, [BOT_ENTRY], { cwd: ROOT, env, stdio: ["pipe", "pipe", "pipe"] });
   b.proc = child; b.actualServer = "connecting"; b.lastStart = Date.now();
   addLog(id, `STARTED ${c.name} -> ${c.target} @ ${connectHost}:${c.port} (${c.mode})`);
   child.stdout.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => { const detected = detectServer(x); if (detected) b.actualServer = detected; addLog(id, x); broadcastState(); }));
@@ -91,10 +91,14 @@ function updateConfig(id, body) {
   if (body.host !== undefined) { const h = String(body.host).trim().toLowerCase(); if (!/^[a-z0-9.-]{1,253}$/.test(h)) return { ok: false, error: "Invalid host" }; c.host = h; }
   if (body.proxyHost !== undefined) { const h = String(body.proxyHost).trim().toLowerCase(); if (!/^[a-z0-9.-]{1,253}$/.test(h)) return { ok: false, error: "Invalid proxy host" }; c.proxyHost = h; }
   if (body.port !== undefined) { const n = Number(body.port); if (!Number.isInteger(n) || n < 1 || n > 65535) return { ok: false, error: "Invalid port" }; c.port = n; }
-  for (const [key, min, max] of [["disconnectInterval",0,86400000],["routeDelay",0,600000],["loginDelay",0,60000]]) {
+  for (const [key, min, max] of [["disconnectInterval",0,86400000],["reconnectDelay",3000,86400000],["routeDelay",0,600000],["loginDelay",0,60000]]) {
     if (body[key] !== undefined) { const n = Number(body[key]); if (!Number.isFinite(n) || n < min || n > max) return { ok:false, error:`Invalid ${key}` }; c[key] = Math.round(n); }
   }
-  c.reconnectDelay = c.mode === "proxy" ? DEFAULT_PROXY_RECONNECT : DEFAULT_DIRECT_RECONNECT;
+  // Changing connection mode updates the default reconnect value only when
+  // the caller did not explicitly supply one.
+  if (body.mode !== undefined && body.reconnectDelay === undefined) {
+    c.reconnectDelay = c.mode === "proxy" ? DEFAULT_PROXY_RECONNECT : DEFAULT_DIRECT_RECONNECT;
+  }
   return { ok: true };
 }
 
@@ -110,6 +114,22 @@ app.get("/api/logs/:id",requireAuth,(req,res)=>{if(!bots[req.params.id])return r
 app.post("/api/bots/:id/start",requireAuth,(req,res)=>res.json(startBot(req.params.id)));
 app.post("/api/bots/:id/stop",requireAuth,(req,res)=>res.json(stopBot(req.params.id)));
 app.post("/api/bots/:id/config",requireAuth,(req,res)=>{const r=updateConfig(req.params.id,req.body||{});if(!r.ok)return res.status(400).json(r);addLog(req.params.id,"[panel] Settings updated");broadcastState();if(bots[req.params.id].proc){stopBot(req.params.id);setTimeout(()=>startBot(req.params.id),1000);}res.json(r);});
+app.post("/api/bots/:id/send",requireAuth,(req,res)=>{
+  const id=req.params.id, b=bots[id];
+  if(!b) return res.status(404).json({ok:false,error:"Unknown bot"});
+  if(!b.proc || !b.proc.stdin || b.proc.stdin.destroyed) return res.status(400).json({ok:false,error:"Bot is not running"});
+  const text=String(req.body?.text||"").trim();
+  if(!text || text.length>500) return res.status(400).json({ok:false,error:"Message/command must be 1-500 characters"});
+  try { b.proc.stdin.write(text+"\n"); return res.json({ok:true}); }
+  catch(e) { return res.status(500).json({ok:false,error:e.message}); }
+});
+app.post("/api/bots/:id/clear",requireAuth,(req,res)=>{
+  const id=req.params.id;
+  if(!bots[id]) return res.status(404).json({ok:false,error:"Unknown bot"});
+  bots[id].log=[];
+  if(wss) wss.clients.forEach(ws=>{if(ws.readyState===WebSocket.OPEN&&ws.authed)ws.send(JSON.stringify({type:"clear",id}));});
+  res.json({ok:true});
+});
 
 const server=http.createServer(app); wss=new WebSocket.Server({server,path:"/ws"});
 wss.on("connection",(ws,req)=>{ws.authed=isAuthed(req);if(!ws.authed)return ws.close(1008,"Unauthorized");ws.send(JSON.stringify({type:"state",bots:state()}));for(const id of Object.keys(bots))for(const line of bots[id].log.slice(-100))ws.send(JSON.stringify({type:"log",id,line}));});
