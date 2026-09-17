@@ -1,7 +1,6 @@
 const mineflayer = require("mineflayer");
 const fs = require("fs");
 const path = require("path");
-const readline = require("readline");
 
 const HOST = process.env.BOT_HOST || process.env.VELOCITY_HOST || "play.gamerpointmc.qzz.io";
 const PORT = Number(process.env.BOT_PORT || process.env.VELOCITY_PORT || 25565);
@@ -13,7 +12,7 @@ const MC_VERSION = process.env.MC_VERSION || "1.21.11";
 const LOGIN_DELAY = Math.max(0, Number(process.env.LOGIN_DELAY_MS || 1500));
 const LOGIN_RETRY_INTERVAL = Math.max(5000, Number(process.env.LOGIN_RETRY_INTERVAL_MS || 7000));
 const MAX_LOGIN_RETRIES = Math.max(1, Number(process.env.MAX_LOGIN_RETRIES || 3));
-const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 8000));
+const ROUTE_DELAY = Math.max(0, Number(process.env.ROUTE_DELAY_MS || 4000));
 const ROUTE_RETRY_INTERVAL = Math.max(5000, Number(process.env.ROUTE_RETRY_INTERVAL_MS || 7000));
 const MAX_ROUTE_RETRIES = Math.max(1, Number(process.env.MAX_ROUTE_RETRIES || 8));
 const DISCONNECT_INTERVAL = Math.max(0, Number(process.env.DISCONNECT_INTERVAL_MS || 600000));
@@ -36,6 +35,34 @@ let routeAttempts = 0;
 let stopping = false;
 
 function log(msg) { console.log(`[${USERNAME}] ${msg}`); }
+function handlePanelInput(line) {
+  const raw = String(line || "").trim();
+  if (!raw || !bot || stopping) return;
+  try {
+    if (raw.startsWith("CMD:")) {
+      const command = raw.slice(4).trim();
+      if (!command) return;
+      bot.chat(command.startsWith("/") ? command : `/${command}`);
+      log(`Panel command executed: ${command.startsWith("/") ? command : `/${command}`}`);
+    } else if (raw.startsWith("CHAT:")) {
+      const message = raw.slice(5).trim();
+      if (!message) return;
+      bot.chat(message);
+      log(`Panel chat sent: ${message}`);
+    }
+  } catch (err) {
+    log(`Panel input error: ${err.message}`);
+  }
+}
+
+process.stdin.setEncoding("utf8");
+let panelInputBuffer = "";
+process.stdin.on("data", chunk => {
+  panelInputBuffer += chunk;
+  const lines = panelInputBuffer.split(/\r?\n/);
+  panelInputBuffer = lines.pop() || "";
+  for (const line of lines) handlePanelInput(line);
+});
 function clearTimers() {
   if (routeTimer) clearTimeout(routeTimer);
   if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -305,19 +332,6 @@ function connect() {
     scheduleReconnect();
   });
 }
-
-
-const stdin = readline.createInterface({ input: process.stdin, terminal: false });
-stdin.on("line", line => {
-  const text = String(line || "").trim();
-  if (!text || !bot || stopping) return;
-  try {
-    bot.chat(text);
-    log(`[PANEL] Sent: ${text}`);
-  } catch (err) {
-    log(`[PANEL] Send failed: ${err.message}`);
-  }
-});
 
 process.on("SIGTERM", () => { stopping = true; clearTimers(); if (bot) { try { bot.quit("Panel stop"); } catch {} } setTimeout(() => process.exit(0), 500); });
 process.on("SIGINT", () => process.emit("SIGTERM"));
