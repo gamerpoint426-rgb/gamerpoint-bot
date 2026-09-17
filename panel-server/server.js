@@ -63,14 +63,46 @@ saveConfigs();
 
 const bots = {};
 for (const id of Object.keys(configs)) bots[id] = { proc: null, log: [], actualServer: "unknown", lastStart: null };
-const sessions = new Set();
+const SESSION_FILE = process.env.SESSION_FILE || path.join(DATA_DIR, "panel-session.json");
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+let sessionState = loadSessionState();
 let wss;
 
+function loadSessionState() {
+  try {
+    if (!fs.existsSync(SESSION_FILE)) return { tokenHash: null, createdAt: 0 };
+    const raw = JSON.parse(fs.readFileSync(SESSION_FILE, "utf8"));
+    return raw && typeof raw === "object" ? raw : { tokenHash: null, createdAt: 0 };
+  } catch (e) {
+    console.error(`[AUTH] Could not load ${SESSION_FILE}: ${e.message}`);
+    return { tokenHash: null, createdAt: 0 };
+  }
+}
+function saveSessionState() {
+  try {
+    fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
+    const tmp = `${SESSION_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(sessionState, null, 2), "utf8");
+    fs.renameSync(tmp, SESSION_FILE);
+    return true;
+  } catch (e) {
+    console.error(`[AUTH] Could not save ${SESSION_FILE}: ${e.message}`);
+    return false;
+  }
+}
+function hashToken(token) {
+  return crypto.createHash("sha256").update(String(token)).digest("hex");
+}
 function cookieToken() { return crypto.randomBytes(32).toString("hex"); }
 function isAuthed(req) {
   const cookie = req.headers.cookie || "";
   const match = cookie.match(/(?:^|;\s*)gpmc_session=([^;]+)/);
-  return !!match && sessions.has(match[1]);
+  if (!match || !sessionState.tokenHash) return false;
+  if (!sessionState.createdAt || Date.now() - Number(sessionState.createdAt) > SESSION_MAX_AGE * 1000) return false;
+  const actual = hashToken(match[1]);
+  try {
+    return crypto.timingSafeEqual(Buffer.from(actual, "hex"), Buffer.from(sessionState.tokenHash, "hex"));
+  } catch { return false; }
 }
 function requireAuth(req, res, next) { if (!isAuthed(req)) return res.status(401).json({ ok: false, error: "Unauthorized" }); next(); }
 function addLog(id, line) {
@@ -135,8 +167,21 @@ function updateConfig(id, body) {
 const app = express(); app.use(express.json());
 app.get("/", (req,res) => { if (!isAuthed(req)) return res.sendFile(path.join(__dirname,"public","login.html")); res.sendFile(path.join(__dirname,"public","index.html")); });
 app.use(express.static(path.join(__dirname,"public")));
-app.post("/login", (req,res) => { if (String(req.body?.password||"") !== PANEL_PASSWORD) return res.status(401).json({ok:false,error:"Wrong panel password"}); const token=cookieToken(); sessions.add(token); res.setHeader("Set-Cookie",`gpmc_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=86400${process.env.NODE_ENV === "production" ? "; Secure" : ""}`); res.json({ok:true}); });
-app.post("/logout", (req,res) => { const m=(req.headers.cookie||"").match(/(?:^|;\s*)gpmc_session=([^;]+)/); if(m)sessions.delete(m[1]); res.setHeader("Set-Cookie","gpmc_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0"); res.json({ok:true}); });
+app.post("/login", (req,res) => {
+  if (String(req.body?.password||"") !== PANEL_PASSWORD) return res.status(401).json({ok:false,error:"Wrong panel password"});
+  const token = cookieToken();
+  sessionState = { tokenHash: hashToken(token), createdAt: Date.now() };
+  if (!saveSessionState()) return res.status(500).json({ok:false,error:"Could not save login session on server"});
+  const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
+  res.setHeader("Set-Cookie",`gpmc_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${secure}`);
+  res.json({ok:true});
+});
+app.post("/logout", (req,res) => {
+  sessionState = { tokenHash: null, createdAt: 0 };
+  saveSessionState();
+  res.setHeader("Set-Cookie","gpmc_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
+  res.json({ok:true});
+});
 app.get("/health",(_req,res)=>res.status(200).send("GamerPointMC Bot Panel OK"));
 app.get("/api/config",requireAuth,(_req,res)=>res.json({ok:true,host:HOST,port:VELOCITY_PORT,serverOptions:SERVER_OPTIONS,bots:state()}));
 app.get("/api/state",requireAuth,(_req,res)=>res.json({ok:true,bots:state()}));
