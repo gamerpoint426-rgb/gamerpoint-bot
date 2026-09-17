@@ -4,6 +4,7 @@ const WebSocket = require("ws");
 const { spawn } = require("child_process");
 const path = require("path");
 const crypto = require("crypto");
+const fs = require("fs");
 
 const PORT = Number(process.env.PORT || process.env.PANEL_PORT || 3000);
 const PANEL_PASSWORD = process.env.PANEL_PASSWORD || "NotgpPanel1";
@@ -14,9 +15,34 @@ const VELOCITY_PORT = Number(process.env.VELOCITY_PORT || 25565);
 const DEFAULT_PROXY_RECONNECT = 60000;
 const DEFAULT_DIRECT_RECONNECT = 300000;
 const DEFAULT_DISCONNECT = Number(process.env.DISCONNECT_INTERVAL_MS || 0);
-const DEFAULT_ROUTE = Number(process.env.ROUTE_DELAY_MS || 2000);
+const DEFAULT_ROUTE = Number(process.env.ROUTE_DELAY_MS || 10000);
 const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
+const DATA_DIR = process.env.DATA_DIR || "/data";
+const CONFIG_FILE = process.env.CONFIG_FILE || path.join(DATA_DIR, "bot-config.json");
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
+
+function loadSavedConfigs() {
+  try {
+    if (!fs.existsSync(CONFIG_FILE)) return {};
+    const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf8"));
+    return raw && typeof raw === "object" ? raw : {};
+  } catch (e) {
+    console.error(`[CONFIG] Could not load ${CONFIG_FILE}: ${e.message}`);
+    return {};
+  }
+}
+function saveConfigs() {
+  try {
+    fs.mkdirSync(path.dirname(CONFIG_FILE), { recursive: true });
+    const tmp = `${CONFIG_FILE}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify(configs, null, 2), "utf8");
+    fs.renameSync(tmp, CONFIG_FILE);
+    return true;
+  } catch (e) {
+    console.error(`[CONFIG] Could not save ${CONFIG_FILE}: ${e.message}`);
+    return false;
+  }
+}
 
 const configs = {
   "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
@@ -28,6 +54,12 @@ const configs = {
   "7": { name: "Bot7", target: "survival", mode: "direct", host: process.env.BOT7_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
   "8": { name: "Bot8", target: "lobby", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: DEFAULT_DISCONNECT, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
 };
+
+const savedConfigs = loadSavedConfigs();
+for (const id of Object.keys(configs)) {
+  if (savedConfigs[id] && typeof savedConfigs[id] === "object") Object.assign(configs[id], savedConfigs[id]);
+}
+saveConfigs();
 
 const bots = {};
 for (const id of Object.keys(configs)) bots[id] = { proc: null, log: [], actualServer: "unknown", lastStart: null };
@@ -74,6 +106,7 @@ function startBot(id) {
   addLog(id, `STARTED ${c.name} -> ${c.target} @ ${connectHost}:${c.port} (${c.mode})`);
   child.stdout.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => { const detected = detectServer(x); if (detected) b.actualServer = detected; addLog(id, x); broadcastState(); }));
   child.stderr.on("data", d => d.toString().split(/\r?\n/).filter(Boolean).forEach(x => { if (/Chunk size is 63 but only 29 was read/i.test(x)) return; addLog(id, `[ERR] ${x}`); }));
+  child.stdin.on("error", err => addLog(id, `[STDIN ERROR] ${err.message}`));
   child.on("error", err => addLog(id, `[PROCESS ERROR] ${err.message}`));
   child.on("exit", (code, signal) => { b.proc = null; b.actualServer = "disconnected"; addLog(id, `STOPPED (code=${code}, signal=${signal || "none"})`); broadcastState(); });
   broadcastState(); return { ok: true };
@@ -86,19 +119,16 @@ function updateConfig(id, body) {
   const c = configs[id]; if (!c) return { ok: false, error: "Unknown bot" };
   if (body.name !== undefined) { const name = String(body.name).trim(); if (!/^[A-Za-z0-9_]{1,16}$/.test(name)) return { ok: false, error: "Invalid bot name (1-16 letters, numbers, underscore)" }; c.name = name; }
   if (body.target !== undefined) { const t = String(body.target).trim().toLowerCase(); if (!/^[a-z0-9_-]{1,32}$/.test(t)) return { ok: false, error: "Invalid target server" }; c.target = t; }
-  if (body.mode !== undefined) { const m = String(body.mode).trim().toLowerCase(); if (m !== "direct" && m !== "proxy") return { ok: false, error: "Invalid connection mode" }; c.mode = m; c.reconnectDelay = m === "proxy" ? DEFAULT_PROXY_RECONNECT : DEFAULT_DIRECT_RECONNECT; }
+  if (body.mode !== undefined) { const m = String(body.mode).trim().toLowerCase(); if (m !== "direct" && m !== "proxy") return { ok: false, error: "Invalid connection mode" }; c.mode = m; }
   if (body.password !== undefined) { const p = String(body.password); if (!p || p.length > 100) return { ok: false, error: "Invalid password" }; c.password = p; }
   if (body.host !== undefined) { const h = String(body.host).trim().toLowerCase(); if (!/^[a-z0-9.-]{1,253}$/.test(h)) return { ok: false, error: "Invalid host" }; c.host = h; }
   if (body.proxyHost !== undefined) { const h = String(body.proxyHost).trim().toLowerCase(); if (!/^[a-z0-9.-]{1,253}$/.test(h)) return { ok: false, error: "Invalid proxy host" }; c.proxyHost = h; }
   if (body.port !== undefined) { const n = Number(body.port); if (!Number.isInteger(n) || n < 1 || n > 65535) return { ok: false, error: "Invalid port" }; c.port = n; }
-  for (const [key, min, max] of [["disconnectInterval",0,86400000],["reconnectDelay",3000,86400000],["routeDelay",0,600000],["loginDelay",0,60000]]) {
+  for (const [key, min, max] of [["disconnectInterval",0,86400000],["routeDelay",0,600000],["loginDelay",0,60000]]) {
     if (body[key] !== undefined) { const n = Number(body[key]); if (!Number.isFinite(n) || n < min || n > max) return { ok:false, error:`Invalid ${key}` }; c[key] = Math.round(n); }
   }
-  // Changing connection mode updates the default reconnect value only when
-  // the caller did not explicitly supply one.
-  if (body.mode !== undefined && body.reconnectDelay === undefined) {
-    c.reconnectDelay = c.mode === "proxy" ? DEFAULT_PROXY_RECONNECT : DEFAULT_DIRECT_RECONNECT;
-  }
+  if (body.reconnectDelay !== undefined) { const n = Number(body.reconnectDelay); if (!Number.isFinite(n) || n < 3000 || n > 86400000) return { ok:false, error:"Invalid reconnect delay (3-86400 seconds)" }; c.reconnectDelay = Math.round(n); }
+  if (!saveConfigs()) return { ok:false, error:"Could not save settings on server" };
   return { ok: true };
 }
 
@@ -113,23 +143,23 @@ app.get("/api/state",requireAuth,(_req,res)=>res.json({ok:true,bots:state()}));
 app.get("/api/logs/:id",requireAuth,(req,res)=>{if(!bots[req.params.id])return res.status(404).json({ok:false,error:"Unknown bot"});res.json({ok:true,log:bots[req.params.id].log});});
 app.post("/api/bots/:id/start",requireAuth,(req,res)=>res.json(startBot(req.params.id)));
 app.post("/api/bots/:id/stop",requireAuth,(req,res)=>res.json(stopBot(req.params.id)));
-app.post("/api/bots/:id/config",requireAuth,(req,res)=>{const r=updateConfig(req.params.id,req.body||{});if(!r.ok)return res.status(400).json(r);addLog(req.params.id,"[panel] Settings updated");broadcastState();if(bots[req.params.id].proc){stopBot(req.params.id);setTimeout(()=>startBot(req.params.id),1000);}res.json(r);});
 app.post("/api/bots/:id/send",requireAuth,(req,res)=>{
-  const id=req.params.id, b=bots[id];
+  const b=bots[req.params.id];
   if(!b) return res.status(404).json({ok:false,error:"Unknown bot"});
   if(!b.proc || !b.proc.stdin || b.proc.stdin.destroyed) return res.status(400).json({ok:false,error:"Bot is not running"});
   const text=String(req.body?.text||"").trim();
+  const type=String(req.body?.type||"chat").toLowerCase();
   if(!text || text.length>500) return res.status(400).json({ok:false,error:"Message/command must be 1-500 characters"});
-  try { b.proc.stdin.write(text+"\n"); return res.json({ok:true}); }
-  catch(e) { return res.status(500).json({ok:false,error:e.message}); }
+  if(type!=="chat" && type!=="command") return res.status(400).json({ok:false,error:"Invalid send type"});
+  const payload=`${type === "command" ? "CMD:" : "CHAT:"}${text.replace(/\r?\n/g," ")}\n`;
+  try { b.proc.stdin.write(payload); addLog(req.params.id, `[panel] Sent ${type}: ${text}`); res.json({ok:true}); }
+  catch(e) { res.status(500).json({ok:false,error:e.message}); }
 });
 app.post("/api/bots/:id/clear",requireAuth,(req,res)=>{
-  const id=req.params.id;
-  if(!bots[id]) return res.status(404).json({ok:false,error:"Unknown bot"});
-  bots[id].log=[];
-  if(wss) wss.clients.forEach(ws=>{if(ws.readyState===WebSocket.OPEN&&ws.authed)ws.send(JSON.stringify({type:"clear",id}));});
-  res.json({ok:true});
+  const b=bots[req.params.id]; if(!b) return res.status(404).json({ok:false,error:"Unknown bot"});
+  b.log=[]; if(wss) wss.clients.forEach(ws=>{if(ws.readyState===WebSocket.OPEN&&ws.authed) ws.send(JSON.stringify({type:"clear",id:req.params.id}));}); res.json({ok:true});
 });
+app.post("/api/bots/:id/config",requireAuth,(req,res)=>{const r=updateConfig(req.params.id,req.body||{});if(!r.ok)return res.status(400).json(r);addLog(req.params.id,"[panel] Settings updated");broadcastState();if(bots[req.params.id].proc){stopBot(req.params.id);setTimeout(()=>startBot(req.params.id),1000);}res.json(r);});
 
 const server=http.createServer(app); wss=new WebSocket.Server({server,path:"/ws"});
 wss.on("connection",(ws,req)=>{ws.authed=isAuthed(req);if(!ws.authed)return ws.close(1008,"Unauthorized");ws.send(JSON.stringify({type:"state",bots:state()}));for(const id of Object.keys(bots))for(const line of bots[id].log.slice(-100))ws.send(JSON.stringify({type:"log",id,line}));});
