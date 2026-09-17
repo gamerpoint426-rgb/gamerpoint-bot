@@ -17,7 +17,12 @@ const DEFAULT_DIRECT_RECONNECT = 300000;
 const DEFAULT_DISCONNECT = Number(process.env.DISCONNECT_INTERVAL_MS || 0);
 const DEFAULT_ROUTE = Number(process.env.ROUTE_DELAY_MS || 10000);
 const DEFAULT_LOGIN = Number(process.env.LOGIN_DELAY_MS || 1500);
-const DATA_DIR = process.env.DATA_DIR || "/data";
+const REQUESTED_DATA_DIR = process.env.DATA_DIR || "/data";
+function ensureWritableDir(dir) {
+  try { fs.mkdirSync(dir, { recursive: true }); fs.accessSync(dir, fs.constants.W_OK); return dir; }
+  catch (e) { console.warn(`[STORAGE] ${dir} is not writable; using local server storage instead.`); const fallback = path.join(ROOT, ".panel-data"); fs.mkdirSync(fallback, { recursive: true }); return fallback; }
+}
+const DATA_DIR = ensureWritableDir(REQUESTED_DATA_DIR);
 const CONFIG_FILE = process.env.CONFIG_FILE || path.join(DATA_DIR, "bot-config.json");
 const SERVER_OPTIONS = ["lobby", "survival", "minigame", "oneblock"];
 
@@ -63,46 +68,29 @@ saveConfigs();
 
 const bots = {};
 for (const id of Object.keys(configs)) bots[id] = { proc: null, log: [], actualServer: "unknown", lastStart: null };
-const SESSION_FILE = process.env.SESSION_FILE || path.join(DATA_DIR, "panel-session.json");
 const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
-let sessionState = loadSessionState();
-let wss;
-
-function loadSessionState() {
+// Authentication is carried by a signed cookie, so a Render restart cannot invalidate
+// the panel session merely because the server cannot write /data. No plaintext password is stored.
+const SESSION_SECRET = crypto.createHash("sha256").update(String(PANEL_PASSWORD) + "|gpmc-panel-session-v2").digest("hex");
+function signSession(payload) {
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const sig = crypto.createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
+  return `${body}.${sig}`;
+}
+function verifySession(token) {
   try {
-    if (!fs.existsSync(SESSION_FILE)) return { tokenHash: null, createdAt: 0 };
-    const raw = JSON.parse(fs.readFileSync(SESSION_FILE, "utf8"));
-    return raw && typeof raw === "object" ? raw : { tokenHash: null, createdAt: 0 };
-  } catch (e) {
-    console.error(`[AUTH] Could not load ${SESSION_FILE}: ${e.message}`);
-    return { tokenHash: null, createdAt: 0 };
-  }
+    const [body, sig] = String(token || "").split(".");
+    if (!body || !sig) return false;
+    const expected = crypto.createHmac("sha256", SESSION_SECRET).update(body).digest("base64url");
+    if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+    const data = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+    return data && Number.isFinite(Number(data.iat)) && Date.now() - Number(data.iat) <= SESSION_MAX_AGE * 1000;
+  } catch { return false; }
 }
-function saveSessionState() {
-  try {
-    fs.mkdirSync(path.dirname(SESSION_FILE), { recursive: true });
-    const tmp = `${SESSION_FILE}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(sessionState, null, 2), "utf8");
-    fs.renameSync(tmp, SESSION_FILE);
-    return true;
-  } catch (e) {
-    console.error(`[AUTH] Could not save ${SESSION_FILE}: ${e.message}`);
-    return false;
-  }
-}
-function hashToken(token) {
-  return crypto.createHash("sha256").update(String(token)).digest("hex");
-}
-function cookieToken() { return crypto.randomBytes(32).toString("hex"); }
 function isAuthed(req) {
   const cookie = req.headers.cookie || "";
   const match = cookie.match(/(?:^|;\s*)gpmc_session=([^;]+)/);
-  if (!match || !sessionState.tokenHash) return false;
-  if (!sessionState.createdAt || Date.now() - Number(sessionState.createdAt) > SESSION_MAX_AGE * 1000) return false;
-  const actual = hashToken(match[1]);
-  try {
-    return crypto.timingSafeEqual(Buffer.from(actual, "hex"), Buffer.from(sessionState.tokenHash, "hex"));
-  } catch { return false; }
+  return !!match && verifySession(match[1]);
 }
 function requireAuth(req, res, next) { if (!isAuthed(req)) return res.status(401).json({ ok: false, error: "Unauthorized" }); next(); }
 function addLog(id, line) {
@@ -169,16 +157,12 @@ app.get("/", (req,res) => { if (!isAuthed(req)) return res.sendFile(path.join(__
 app.use(express.static(path.join(__dirname,"public")));
 app.post("/login", (req,res) => {
   if (String(req.body?.password||"") !== PANEL_PASSWORD) return res.status(401).json({ok:false,error:"Wrong panel password"});
-  const token = cookieToken();
-  sessionState = { tokenHash: hashToken(token), createdAt: Date.now() };
-  if (!saveSessionState()) return res.status(500).json({ok:false,error:"Could not save login session on server"});
+  const token = signSession({ iat: Date.now() });
   const secure = req.headers["x-forwarded-proto"] === "https" ? "; Secure" : "";
   res.setHeader("Set-Cookie",`gpmc_session=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${secure}`);
   res.json({ok:true});
 });
 app.post("/logout", (req,res) => {
-  sessionState = { tokenHash: null, createdAt: 0 };
-  saveSessionState();
   res.setHeader("Set-Cookie","gpmc_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0");
   res.json({ok:true});
 });
