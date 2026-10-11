@@ -24,7 +24,7 @@ function ensureWritableDir(dir) {
 }
 const DATA_DIR = ensureWritableDir(REQUESTED_DATA_DIR);
 const CONFIG_FILE = process.env.CONFIG_FILE || path.join(DATA_DIR, "bot-config.json");
-const SERVER_OPTIONS = ["lobby", "survival", "minigame"];
+const SERVER_OPTIONS = ["hub", "arcade", "bedwars", "skybwars"];
 
 function loadSavedConfigs() {
   try {
@@ -50,14 +50,16 @@ function saveConfigs() {
 }
 
 const configs = {
-  "1": { name: "Lobby", target: "lobby", mode: "direct", host: process.env.BOT1_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "2": { name: "Survival", target: "survival", mode: "proxy", host: process.env.BOT2_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "3": { name: "MiniGame", target: "minigame", mode: "proxy", host: process.env.BOT3_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "4": { name: "OneBlock", target: "oneblock", mode: "direct", host: process.env.BOT4_HOST || "gamerpoint.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "5": { name: "Wammu", target: "lobby", mode: "direct", host: process.env.BOT5_HOST || "gpmcsurvival.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT5_PORT || 25565), password: process.env.BOT5_PASSWORD || "Notgpbot5", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "6": { name: "cat", target: "lobby", mode: "direct", host: process.env.BOT6_HOST || "gpmcminigame.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT6_PORT || 25565), password: process.env.BOT6_PASSWORD || "Notgpbot6", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "7": { name: "Wammmu", target: "lobby", mode: "direct", host: process.env.BOT7_HOST || "gamerpointmc904.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
-  "8": { name: "meamea", target: "lobby", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
+  "1": { name: "Hub", target: "hub", mode: "direct", host: process.env.BOT1_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT1_PORT || 25565), password: process.env.BOT1_PASSWORD || "Notgpbot1", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "2": { name: "Arcade", target: "arcade", mode: "proxy", host: process.env.BOT2_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT2_PORT || 25565), password: process.env.BOT2_PASSWORD || "Notgpbot2", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "3": { name: "Bedwars", target: "bedwars", mode: "proxy", host: process.env.BOT3_HOST || "play.gamerpointmc.qzz.io", proxyHost: HOST, port: Number(process.env.BOT3_PORT || 25565), password: process.env.BOT3_PASSWORD || "Notgpbot3", disconnectInterval: 20, reconnectDelay: 10, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "4": { name: "Skywars", target: "skywars", mode: "direct", host: process.env.BOT4_HOST || "gamerpoint.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT4_PORT || 25565), password: process.env.BOT4_PASSWORD || "Notgpbot4", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "5": { name: "Wammu", target: "hub", mode: "direct", host: process.env.BOT5_HOST || "gpmcsurvival.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT5_PORT || 25565), password: process.env.BOT5_PASSWORD || "Notgpbot5", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "6": { name: "cat", target: "hub", mode: "direct", host: process.env.BOT6_HOST || "gpmcminigame.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT6_PORT || 25565), password: process.env.BOT6_PASSWORD || "Notgpbot6", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "7": { name: "Wammmu", target: "hub", mode: "direct", host: process.env.BOT7_HOST || "gamerpointmc904.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT7_PORT || 25565), password: process.env.BOT7_PASSWORD || "Notgpbot7", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN },
+  "8": { name: "meamea", target: "hub", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
+  "9": { name: "meamea", target: "hub", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
+  "10": { name: "meamea", target: "hub", mode: "direct", host: process.env.BOT8_HOST || "gpmcbot8.mcsh.io", proxyHost: HOST, port: Number(process.env.BOT8_PORT || 25565), password: process.env.BOT8_PASSWORD || "Notgpbot8", disconnectInterval: 2, reconnectDelay: DEFAULT_DIRECT_RECONNECT, routeDelay: DEFAULT_ROUTE, loginDelay: DEFAULT_LOGIN }
 };
 
 const savedConfigs = loadSavedConfigs();
