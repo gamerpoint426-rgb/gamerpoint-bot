@@ -1,0 +1,6 @@
+Hourly bot restart
+
+Each bot process is automatically restarted after 60 minutes of running.
+The bot is stopped gracefully, then started again 3 seconds after its process exits.
+The timer resets after each start. Manually stopped bots will not be restarted by the hourly timer.
+This restarts the Minecraft bot process only; it does not restart the hosting service or panel.

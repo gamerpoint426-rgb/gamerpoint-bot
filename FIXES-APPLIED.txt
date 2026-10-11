@@ -1,0 +1,10 @@
+GamerPointMC bot panel fixes
+
+- Fixed the syntax error in panel-server/server.js caused by accidental Bot 9/10 entries.
+- Restored the documented 8-bot panel (UI already expects 8 bots).
+- Disabled periodic forced disconnect by default (disconnectInterval = 0), so bots do not intentionally disconnect on a short timer.
+- Set proxy reconnect default to 60 seconds and direct reconnect default to 5 minutes.
+
+Deploy with Node.js 22+: npm install, then npm start.
+Set PANEL_PASSWORD to a strong private password in your hosting environment before exposing the panel.
+Review each bot's host, username, password, and target in panel settings before starting it.
