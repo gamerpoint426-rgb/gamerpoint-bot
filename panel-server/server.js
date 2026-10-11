@@ -193,4 +193,4 @@ app.post("/api/bots/:id/config",requireAuth,(req,res)=>{const r=updateConfig(req
 const server=http.createServer(app); wss=new WebSocket.Server({server,path:"/ws"});
 wss.on("connection",(ws,req)=>{ws.authed=isAuthed(req);if(!ws.authed)return ws.close(1008,"Unauthorized");ws.send(JSON.stringify({type:"state",bots:state()}));for(const id of Object.keys(bots))for(const line of bots[id].log.slice(-100))ws.send(JSON.stringify({type:"log",id,line}));});
 server.listen(PORT,"0.0.0.0",()=>console.log(`GamerPointMC panel listening on 0.0.0.0:${PORT}`));
-if(process.env.AUTO_START!=="0")setTimeout(()=>Object.keys(configs).filter(id=>id!=="8").forEach(startBot),1000);
+if(process.env.AUTO_START!=="0")setTimeout(()=>Object.keys(configs).forEach(startBot),1000);
